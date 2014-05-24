@@ -1,0 +1,40 @@
+#!/usr/bin/env python
+
+from PyQt4 import QtCore, QtGui
+from PyQt4.QtCore import Qt
+
+from MainWindow import MainWindow
+from ConnectionManager import ConnectionManager
+import Queue
+
+outgoing_queue = Queue.Queue()
+incomming_queue = Queue.Queue()     
+   
+if __name__ == '__main__':
+    import sys
+
+    app = QtGui.QApplication(sys.argv)
+    window = MainWindow(incomming_queue, outgoing_queue)
+    app.setActiveWindow(window)
+       
+    connMngrThread = QtCore.QThread()   
+    connMngr = ConnectionManager(incomming_queue, outgoing_queue)
+    connMngr.result.connect(window.connectDone)
+    def startConnection(parameters):
+        QtCore.QMetaObject.invokeMethod(connMngr, 'connect', Qt.QueuedConnection, 
+            QtCore.Q_ARG(tuple, parameters))
+    window.connectRequested().connect(startConnection)
+    connMngr.moveToThread(connMngrThread)
+    connMngrTimer = QtCore.QTimer()
+    connMngrTimer.timeout.connect(connMngr.check)
+    connMngrTimer.start(100)
+    connMngrTimer.moveToThread(connMngrThread)
+    connMngrThread.start()   
+       
+    window.show()
+    
+    retval = app.exec_()
+    connMngrThread.quit()
+    connMngrThread.wait()
+
+    sys.exit(retval)
