@@ -6,6 +6,7 @@ from PyQt4.QtCore import Qt
 from LeftPanel import LeftPanel
 from Logger import Logger
 from IncommingMessageHandler import IncommingMessageHandler
+from TrajectoryTab import TrajectoryTab
 
 class MainWindow(QtGui.QMainWindow):
     def __init__(self, incomming_queue, outgoing_queue):
@@ -174,7 +175,7 @@ class MainWindow(QtGui.QMainWindow):
         ### CENTER PANEL
         self.telemetryPanel = QtGui.QWidget()
         self.motorsPanel = QtGui.QWidget()
-        self.trajectoryPanel = QtGui.QWidget()
+        self.trajectoryPanel = TrajectoryTab()
         self.sdPanel = QtGui.QWidget()
         self.plotsPanel = QtGui.QWidget()
         

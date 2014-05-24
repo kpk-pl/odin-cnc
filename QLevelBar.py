@@ -112,7 +112,7 @@ class QLevelBar(QtGui.QWidget):
         else:
             topLeft = QtCore.QPointF(0, size.height()*left)
             bottomRight = QtCore.QPointF(size.width(), size.height()*right)
-            
+        
         painter.drawRect(QtCore.QRectF(topLeft, bottomRight))    
             
         if self.textVisible:
@@ -120,5 +120,5 @@ class QLevelBar(QtGui.QWidget):
             fm = QtGui.QFontMetrics(self.font)
             rect = fm.boundingRect(val)
             painter.setPen(self.fontPen)
-            painter.drawText((size.width()-rect.width())/2-1, (size.height()+rect.height())/2-4, val)
+            painter.drawText((size.width()-rect.width())/2-1, (size.height()+rect.height())/2-4, val)  
     
