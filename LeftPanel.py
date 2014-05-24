@@ -122,11 +122,13 @@ class LeftPanel(QtGui.QWidget):
         ### Telemetry FRAME
         self.posXEdit = QtGui.QLineEdit()
         self.posXEdit.setReadOnly(True)
-        #self.posXEdit.setAlignment(
         self.posYEdit = QtGui.QLineEdit()
         self.posYEdit.setReadOnly(True)
         self.posOrientEdit = QtGui.QLineEdit()
         self.posOrientEdit.setReadOnly(True)
+        self.posXEdit.setText("?")
+        self.posYEdit.setText("?")
+        self.posOrientEdit.setText("?")
         self.leftSpeedBar = QLevelBar.QLevelBar(-8, 8, 0)
         self.rightSpeedBar = QLevelBar.QLevelBar(-8, 8, 0)
         
@@ -271,3 +273,13 @@ class LeftPanel(QtGui.QWidget):
             self.connectionLabel.show()
         else:
             self.connectionLabel.hide()
+            
+    def resetDefault(self):
+        self.posXEdit.setText("?")
+        self.posYEdit.setText("?")
+        self.posOrientEdit.setText("?")
+        self.leftSpeedBar.reset()
+        self.rightSpeedBar.reset()
+        self.cpuUsageBar.reset()
+        self.memoryBar.reset()
+        self.batteryBar.reset()

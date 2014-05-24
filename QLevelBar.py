@@ -85,7 +85,7 @@ class QLevelBar(QtGui.QWidget):
         
     @QtCore.pyqtSlot()    
     def reset(self):
-        self.setValue(self.minimum)
+        self.setValue(self.zero)
         
     @QtCore.pyqtSlot(float)
     @QtCore.pyqtSlot(int)

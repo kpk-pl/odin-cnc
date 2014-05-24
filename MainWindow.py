@@ -44,35 +44,12 @@ class MainWindow(QtGui.QMainWindow):
         self.dispatcher.updMemUsage.connect(self.leftPanel.memoryBar.setValue)
         self.dispatcher.updTelemetry.connect(self.leftPanel.updateTelemetry)
         self.dispatcher.updCurrentSpeed.connect(self.leftPanel.updateCurrentSpeed)
+        self.dispatcher.reset.connect(self.resetDefault)
         
     def about(self):
         QtGui.QMessageBox.about(self, "About Menu",
                 "The <b>Menu</b> example shows how to create menu-bar menus "
                 "and context menus.")
-
-    def createActions(self):
-        self.exitAct = QtGui.QAction("E&xit", self, shortcut="Ctrl+Q",
-                statusTip="Exit the application", triggered=self.close)
-        self.aboutAct = QtGui.QAction("&About", self,
-                statusTip="Show the application's About box",
-                triggered=self.about)
-        self.aboutQtAct = QtGui.QAction("About &Qt", self,
-                statusTip="Show the Qt library's About box",
-                triggered=QtGui.qApp.aboutQt)
-    def createMenus(self):
-        self.fileMenu = self.menuBar().addMenu("&File")
-        self.fileMenu.addSeparator()
-        self.fileMenu.addAction(self.exitAct)
-
-        self.helpMenu = self.menuBar().addMenu("&Help")
-        self.helpMenu.addAction(self.aboutAct)
-        self.helpMenu.addAction(self.aboutQtAct)
-    def createConnections(self):
-        self.commSendBtn.clicked.connect(self.commInput.saveLine)
-        self.commSendBtn.clicked.connect(self.commSendBtnClicked)
-        self.commInput.returnPressed.connect(self.commSendBtnClicked)
-        self.leftPanel.statsRefreshChanged.connect(lambda t: self.statsRefreshTimer.start(t) if t > 0 else self.statsRefreshTimer.stop())
-        self.leftPanel.telemetryRefreshChanged.connect(self.handleTelemetryRefreshChange)
 
     def closeEvent(self, event):
         self.dispatcher.stop()
@@ -103,7 +80,13 @@ class MainWindow(QtGui.QMainWindow):
         self.connected = status
         self.commSendBtn.setEnabled(status)
         self.leftPanel.connectDone(status)
-         
+        if not status:
+            self.resetDefault()
+        
+    @QtCore.pyqtSlot()
+    def resetDefault(self):
+        self.leftPanel.resetDefault()
+        
     def sendComm(self, msg_list):
         if self.connected:
             if not isinstance(msg_list, list):
@@ -116,7 +99,33 @@ class MainWindow(QtGui.QMainWindow):
         
     def connectRequested(self):
         return self.leftPanel.connectRequested
-   
+        
+    def createActions(self):
+        self.exitAct = QtGui.QAction("E&xit", self, shortcut="Ctrl+Q",
+                statusTip="Exit the application", triggered=self.close)
+        self.aboutAct = QtGui.QAction("&About", self,
+                statusTip="Show the application's About box",
+                triggered=self.about)
+        self.aboutQtAct = QtGui.QAction("About &Qt", self,
+                statusTip="Show the Qt library's About box",
+                triggered=QtGui.qApp.aboutQt)
+                
+    def createMenus(self):
+        self.fileMenu = self.menuBar().addMenu("&File")
+        self.fileMenu.addSeparator()
+        self.fileMenu.addAction(self.exitAct)
+
+        self.helpMenu = self.menuBar().addMenu("&Help")
+        self.helpMenu.addAction(self.aboutAct)
+        self.helpMenu.addAction(self.aboutQtAct)
+        
+    def createConnections(self):
+        self.commSendBtn.clicked.connect(self.commInput.saveLine)
+        self.commSendBtn.clicked.connect(self.commSendBtnClicked)
+        self.commInput.returnPressed.connect(self.commSendBtnClicked)
+        self.leftPanel.statsRefreshChanged.connect(lambda t: self.statsRefreshTimer.start(t) if t > 0 else self.statsRefreshTimer.stop())
+        self.leftPanel.telemetryRefreshChanged.connect(self.handleTelemetryRefreshChange)
+        
     def configureTimers(self):
         @QtCore.pyqtSlot() 
         def statsRequests():
@@ -127,7 +136,7 @@ class MainWindow(QtGui.QMainWindow):
         def telemetryRequest():
             self.sendComm(["telemetry", "motor speed"])
         self.telemetryRefreshTimer = QtCore.QTimer()
-        self.telemetryRefreshTimer.timeout.connect(telemetryRequest)
+        self.telemetryRefreshTimer.timeout.connect(telemetryRequest)        
         
     def setUpGUI(self):
         widget = QtGui.QWidget()

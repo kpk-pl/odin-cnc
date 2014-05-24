@@ -13,6 +13,7 @@ class IncommingMessageHandler(QtCore.QObject):
     updMemUsage = QtCore.pyqtSignal(int)
     updTelemetry = QtCore.pyqtSignal(tuple)
     updCurrentSpeed = QtCore.pyqtSignal(tuple)
+    reset = QtCore.pyqtSignal()
     
     def __init__(self, input_queue):
         super(IncommingMessageHandler, self).__init__()
@@ -58,6 +59,7 @@ class IncommingMessageHandler(QtCore.QObject):
             lambda payload: self.updCurrentSpeed.emit((
             float(payload.match.group(2)), 
             float(payload.match.group(3)))))
+        self.dispatcher.register(r"(odin>)?Reset!$", lambda payload: self.reset.emit())
             
 
     
