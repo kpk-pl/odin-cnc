@@ -33,6 +33,7 @@ class ConnectionManager(QtCore.QObject):
         if self.comClient and not self.comClient.isAlive():
             self.comClient = None
             Logger.getInstance().put(Logger.ERROR, "COM connection closed unexpectedly")
+            self.result.emit(False)
         
     @QtCore.pyqtSlot(tuple)    
     def connect(self, parameters):

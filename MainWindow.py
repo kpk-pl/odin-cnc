@@ -7,6 +7,7 @@ from LeftPanel import LeftPanel
 from Logger import Logger
 from IncommingMessageHandler import IncommingMessageHandler
 from TrajectoryTab import TrajectoryTab
+from QHistoryLineEdit import QHistoryLineEdit
 
 class MainWindow(QtGui.QMainWindow):
     def __init__(self, incomming_queue, outgoing_queue):
@@ -67,6 +68,7 @@ class MainWindow(QtGui.QMainWindow):
         self.helpMenu.addAction(self.aboutAct)
         self.helpMenu.addAction(self.aboutQtAct)
     def createConnections(self):
+        self.commSendBtn.clicked.connect(self.commInput.saveLine)
         self.commSendBtn.clicked.connect(self.commSendBtnClicked)
         self.commInput.returnPressed.connect(self.commSendBtnClicked)
         self.leftPanel.statsRefreshChanged.connect(lambda t: self.statsRefreshTimer.start(t) if t > 0 else self.statsRefreshTimer.stop())
@@ -142,7 +144,7 @@ class MainWindow(QtGui.QMainWindow):
         self.commConsole.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
         self.commConsole.setMaximumBlockCount(500)
         
-        self.commInput = QtGui.QLineEdit()
+        self.commInput = QHistoryLineEdit()
         self.commSendBtn = QtGui.QPushButton("->")
         self.commSendBtn.setStatusTip("Send command to robot")
         self.commSendBtn.setMaximumWidth(30)
