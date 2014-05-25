@@ -2,15 +2,22 @@
 
 from PyQt4 import QtCore, QtGui
 from PyQt4.QtCore import Qt
+import numpy as np
+import pyqtgraph as pg
 import math
+from datetime import datetime
 
-import Logger
+from Logger import Logger
 
 class TelemetryTab(QtGui.QWidget):
     telemetryRefreshChanged = QtCore.pyqtSignal(int)
 
     def __init__(self, parent=None):
         super(TelemetryTab, self).__init__(parent)
+        
+        self.plotting = False
+        self.telemetryPlotData = []
+        self.plotHistoryS = 60
         
         self.setupGUI()
         
@@ -21,45 +28,64 @@ class TelemetryTab(QtGui.QWidget):
         self.statsRefreshTimer.timeout.connect(statsRequests)
         
         self.plotRefreshMode.currentIndexChanged['QString'].connect(self.plotModeChanged)
-        self.plotRefreshTime.returnPressed.connect(self.plotRefreshTimeChanged)
-        self.plotLimitTime.returnPressed.connect(self.plotLimitTimeChanged)
+        self.plotRefreshTime.sigValueChanged.connect(self.plotRefreshTimeChanged)
+        self.plotLimitTime.sigValueChanged.connect(self.plotLimitTimeChanged)
         
     @QtCore.pyqtSlot(QtCore.QString)    
     def plotModeChanged(self, choice):   
         if str(choice) == "Time":
             self.plotRefreshTime.setEnabled(True)
-            val = self.plotRefreshTime.text()
-            if self.plotRefreshTime.validator().validate(val, 0):
-                self.telemetryRefreshChanged.emit(int(str(val)))
+            self.telemetryRefreshChanged.emit(int(self.plotRefreshTime.value()*1000))
         else:
             self.plotRefreshTime.setEnabled(False)
             if str(choice) == "On change":
                 self.telemetryRefreshChanged.emit(-2)
             else:
                 self.telemetryRefreshChanged.emit(-1)
+                
+        if str(choice) == "Disable":
+            self.plotting = False
+        else:
+            if not self.plotting:
+                self.plotting = True
+                self.telemetryPlot.clear()
             
     @QtCore.pyqtSlot()
     def plotRefreshTimeChanged(self):
-        val = self.plotRefreshTime.text()
-        if self.plotRefreshTime.validator().validate(val, 0):
-            self.telemetryRefreshChanged.emit(int(str(val)))
+        if self.plotRefreshMode.currentText() == "Time":
+            val = self.plotRefreshTime.value()
+            self.telemetryRefreshChanged.emit(int(val*1000))
         
     @QtCore.pyqtSlot()
     def plotLimitTimeChanged(self):
-        val = self.plotLimitTime.text()
-        # TODO
+        self.plotHistoryS = self.plotLimitTime.value()
         
     @QtCore.pyqtSlot(tuple)
     def updateTelemetry(self, update):
         self.statsXEdit.setText(str(update[0]))
         self.statsYEdit.setText(str(update[1]))
         self.statsORawDegEdit.setText(str(update[2]))
-        self.statsORawRadEdit.setText("%.3f" % (update[2]*math.pi/180.0))
+        r = math.radians(update[2])
+        self.statsORawRadEdit.setText("%.3f" % (r))
         t = int((update[2]+180.0)/360.0)
         v = update[2]-360.0*t
         self.statsONormDegEdit.setText(str(v))
-        self.statsONormRadEdit.setText("%.3f" % (v*math.pi/180.0))
+        self.statsONormRadEdit.setText("%.3f" % (math.radians(v)))
         self.statsTimestampEdit.setText(str(update[3]))
+        
+        #update plot
+        if self.plotting:
+            x = update[0]/1000.0
+            y = update[1]/1000.0
+            self.telemetryPlotData.append((x, y, update[3]))
+            now = datetime.now()
+            while len(self.telemetryPlotData) > 0 and \
+                        (now - self.telemetryPlotData[0][2]).total_seconds() > self.plotHistoryS:
+                self.telemetryPlotData.pop(0)
+            self.telemetryPlot.setData([d[0] for d in self.telemetryPlotData], [d[1] for d in self.telemetryPlotData])
+            
+            self.orientationPlot.clear()
+            self.orientationPlot.setData([x,x+0.1*math.cos(r)],[y,y+0.1*math.sin(r)])
         
     def resetDefault(self):
         self.statsXEdit.setText("?")
@@ -71,11 +97,16 @@ class TelemetryTab(QtGui.QWidget):
         self.statsTimestampEdit.setText("?")
         self.plotRefreshMode.setCurrentIndex(0)
         self.plotRefreshTime.setEnabled(False)
-        self.plotRefreshTime.setText("1000")
-        self.plotLimitTime.setText("60")
+        self.plotRefreshTime.setValue(0.1)
         self.trajectoryAutoloadCheck.setChecked(False)
         self.trajectoryDrivingCommandsCheck.setChecked(False)
-        self.trajectoryHistoryEdit.setText("1")
+        self.trajectoryHistoryEdit.setValue(1)
+        self.telemetryPlot.clear()
+        self.orientationPlot.clear()
+        self.plotting = False
+        self.telemetryPlotData = []
+        self.plotHistoryS = 60
+        self.plotLimitTime.setValue(self.plotHistoryS)
 
     def setupGUI(self):
         # main layout
@@ -85,9 +116,20 @@ class TelemetryTab(QtGui.QWidget):
         leftSideWdgt = QtGui.QWidget()
         leftSideWdgt.setSizePolicy(QtGui.QSizePolicy.Fixed, QtGui.QSizePolicy.Expanding)
         leftSideWdgt.setFixedWidth(250);
-        plotWdgt = QtGui.QWidget()
+        plotWdgt = pg.PlotWidget()
         layout.addWidget(leftSideWdgt)
         layout.addWidget(plotWdgt)
+        
+        # plot customization
+        plotWdgt.setRange(xRange=(-1,1), yRange=(-1,1), padding=0.02, disableAutoRange=True)
+        plotWdgt.setAspectLocked(lock=True, ratio=1)
+        plotWdgt.showGrid(x=True, y=True)
+        plotWdgt.setLabel('left', 'Y', units='m')
+        plotWdgt.setLabel('bottom', 'X', units='m')
+        self.telemetryPlot = plotWdgt.plot()
+        self.telemetryPlot.setPen((0, 0, 255))
+        self.orientationPlot = plotWdgt.plot()
+        self.orientationPlot.setPen((255,0,0))
         
         # left layout
         leftLayout = QtGui.QVBoxLayout()
@@ -138,23 +180,19 @@ class TelemetryTab(QtGui.QWidget):
         # plot left
         self.plotRefreshMode = QtGui.QComboBox()
         self.plotRefreshMode.addItems(["Disable", "On change", "Time"])
-        self.plotRefreshTime = QtGui.QLineEdit()
-        self.plotRefreshTime.setValidator(QtGui.QIntValidator(10, 600000))
-        self.plotLimitTime = QtGui.QLineEdit()
-        self.plotLimitTime.setValidator(QtGui.QIntValidator(1, 600))
+        self.plotRefreshTime = pg.SpinBox(bounds=[0.01,None], dec=True, minStep=0.01, step=0.01, suffix='s', siPrefix=True)
+        self.plotLimitTime = pg.SpinBox(bounds=[1,None], int=True, dec=True, minStep=1, step=1, suffix='s', siPrefix=True)
         
         plotBox = QtGui.QGroupBox("Plot")
         plotLayout = QtGui.QGridLayout()
         plotLayout.setSpacing(3)
         plotLayout.setMargin(5)
         plotLayout.addWidget(QtGui.QLabel("Refresh mode"), 0, 0, 1, 1)
-        plotLayout.addWidget(self.plotRefreshMode, 0, 1, 1, 2)
+        plotLayout.addWidget(self.plotRefreshMode, 0, 1, 1, 1)
         plotLayout.addWidget(QtGui.QLabel("Refresh time"), 1, 0, 1, 1)
         plotLayout.addWidget(self.plotRefreshTime, 1, 1, 1, 1)
-        plotLayout.addWidget(QtGui.QLabel("[ms]"), 1, 2, 1, 1)
         plotLayout.addWidget(QtGui.QLabel("Time history"), 2, 0, 1, 1)
         plotLayout.addWidget(self.plotLimitTime, 2, 1, 1, 1)
-        plotLayout.addWidget(QtGui.QLabel("[s]"), 2, 2, 1, 1)
         plotBox.setLayout(plotLayout)
         leftLayout.addWidget(plotBox)
         
@@ -162,8 +200,7 @@ class TelemetryTab(QtGui.QWidget):
         self.trajectoryDrivingCommandsCheck = QtGui.QCheckBox("Plot driving commands")
         self.trajectoryLoadTrajectoryButton = QtGui.QPushButton("Load trajectory")
         self.trajectoryAutoloadCheck = QtGui.QCheckBox("Autoload")
-        self.trajectoryHistoryEdit = QtGui.QLineEdit()
-        self.trajectoryHistoryEdit.setValidator(QtGui.QIntValidator(1, 100))
+        self.trajectoryHistoryEdit = pg.SpinBox(bounds=[1,100], int=True, dec=True, minStep=1, step=1)
         self.trajectoryLoadFromFileButton = QtGui.QPushButton("Load from csv")
         self.trajectoryCleanButton = QtGui.QPushButton("Clean all")
         

@@ -2,6 +2,7 @@
 
 from PyQt4 import QtCore, QtGui
 from PyQt4.QtCore import Qt
+import pyqtgraph as pg
 
 from MainWindow import MainWindow
 from ConnectionManager import ConnectionManager
@@ -13,6 +14,11 @@ incomming_queue = Queue.Queue()
 if __name__ == '__main__':
     import sys
 
+    # setup pyqtgraph
+    pg.setConfigOption('background', 'w')
+    pg.setConfigOption('foreground', 'k')
+    pg.setConfigOption('antialias', True)
+    
     app = QtGui.QApplication(sys.argv)
     window = MainWindow(incomming_queue, outgoing_queue)
     app.setActiveWindow(window)

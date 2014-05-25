@@ -63,7 +63,7 @@ class IncommingMessageHandler(QtCore.QObject):
             float(payload.match.group(2)), 
             float(payload.match.group(3)))))
         self.dispatcher.register(r"^(odin>)?Reset!$", lambda payload: self.reset.emit())
-        self.dispatcher.register(r"^(odin>)?[RC5] Received (\d+)$",
+        self.dispatcher.register(r"^(odin>)?\[RC5\] Received (\d+)$",
             lambda payload: self.rc5Input.emit(payload.match.group(2)))
             
 
