@@ -7,6 +7,7 @@ from LeftPanel import LeftPanel
 from Logger import Logger
 from IncommingMessageHandler import IncommingMessageHandler
 from TrajectoryTab import TrajectoryTab
+from TelemetryTab import TelemetryTab
 from QHistoryLineEdit import QHistoryLineEdit
 
 class MainWindow(QtGui.QMainWindow):
@@ -43,6 +44,7 @@ class MainWindow(QtGui.QMainWindow):
         self.dispatcher.updCpuUsage.connect(self.leftPanel.cpuUsageBar.setValue)
         self.dispatcher.updMemUsage.connect(self.leftPanel.memoryBar.setValue)
         self.dispatcher.updTelemetry.connect(self.leftPanel.updateTelemetry)
+        self.dispatcher.updTelemetry.connect(self.telemetryPanel.updateTelemetry)
         self.dispatcher.updCurrentSpeed.connect(self.leftPanel.updateCurrentSpeed)
         self.dispatcher.reset.connect(self.resetDefault)
         
@@ -60,15 +62,26 @@ class MainWindow(QtGui.QMainWindow):
         #exit()
         
     @QtCore.pyqtSlot(int)
+    def handleSpeedRefreshChange(self, t):
+        if t >= 0:
+            self.speedRefreshTimer.start(t)
+        else:
+            self.speedRefreshTimer.stop()
+        if t == -2:
+            self.sendComm("log speed")
+        else:
+            self.sendComm("log speed off")
+            
+    @QtCore.pyqtSlot(int)
     def handleTelemetryRefreshChange(self, t):
         if t >= 0:
             self.telemetryRefreshTimer.start(t)
         else:
             self.telemetryRefreshTimer.stop()
         if t == -2:
-            self.sendComm(["log speed", "log telemetry"])
+            self.sendComm("log telemetry")
         else:
-            self.sendComm(["log speed off", "log telemetry off"])
+            self.sendComm("log telemetry off")
             
     @QtCore.pyqtSlot()
     def commSendBtnClicked(self):
@@ -86,6 +99,7 @@ class MainWindow(QtGui.QMainWindow):
     @QtCore.pyqtSlot()
     def resetDefault(self):
         self.leftPanel.resetDefault()
+        self.telemetryPanel.resetDefault()
         
     def sendComm(self, msg_list):
         if self.connected:
@@ -125,6 +139,8 @@ class MainWindow(QtGui.QMainWindow):
         self.commInput.returnPressed.connect(self.commSendBtnClicked)
         self.leftPanel.statsRefreshChanged.connect(lambda t: self.statsRefreshTimer.start(t) if t > 0 else self.statsRefreshTimer.stop())
         self.leftPanel.telemetryRefreshChanged.connect(self.handleTelemetryRefreshChange)
+        self.leftPanel.telemetryRefreshChanged.connect(self.handleSpeedRefreshChange)
+        self.telemetryPanel.telemetryRefreshChanged.connect(self.handleTelemetryRefreshChange)
         
     def configureTimers(self):
         @QtCore.pyqtSlot() 
@@ -134,9 +150,14 @@ class MainWindow(QtGui.QMainWindow):
         self.statsRefreshTimer.timeout.connect(statsRequests)
         @QtCore.pyqtSlot()
         def telemetryRequest():
-            self.sendComm(["telemetry", "motor speed"])
+            self.sendComm("telemetry raw")
         self.telemetryRefreshTimer = QtCore.QTimer()
-        self.telemetryRefreshTimer.timeout.connect(telemetryRequest)        
+        self.telemetryRefreshTimer.timeout.connect(telemetryRequest)
+        @QtCore.pyqtSlot()
+        def speedRequest():
+            self.sendComm("motor speed")
+        self.speedRefreshTimer = QtCore.QTimer()
+        self.speedRefreshTimer.timeout.connect(speedRequest)
         
     def setUpGUI(self):
         widget = QtGui.QWidget()
@@ -184,7 +205,7 @@ class MainWindow(QtGui.QMainWindow):
         consoles.setLayout(consoleLayout)
         
         ### CENTER PANEL
-        self.telemetryPanel = QtGui.QWidget()
+        self.telemetryPanel = TelemetryTab()
         self.motorsPanel = QtGui.QWidget()
         self.trajectoryPanel = TrajectoryTab()
         self.sdPanel = QtGui.QWidget()

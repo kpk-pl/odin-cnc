@@ -72,7 +72,6 @@ class LeftPanel(QtGui.QWidget):
         self.comSpeedLabel = QtGui.QLabel("Baudrate")
         self.comSpeedEdit = QtGui.QLineEdit()
         self.comSpeedEdit.setValidator(QtGui.QIntValidator(0, 10000000))
-        self.comSpeedEdit.setText("460800")
         self.connectionLabel = QtGui.QLabel("Connected")
         self.connectionLabel.hide()
         self.connectButton = QtGui.QPushButton("Connect")
@@ -103,7 +102,7 @@ class LeftPanel(QtGui.QWidget):
         self.cpuUsageBar.setFormat("%.1f")
         self.memoryBar = QLevelBar.QLevelBar(40000, 0)
         self.memoryBar.setFormat("%d")
-        self.batteryBar = QLevelBar.QLevelBar(6.4, 8.3)
+        self.batteryBar = QLevelBar.QLevelBar(6.3, 8.45)
         
         self.statsFrame = QtGui.QGroupBox("Stats")
         self.statsFrame.setContextMenuPolicy(Qt.CustomContextMenu)
@@ -283,3 +282,6 @@ class LeftPanel(QtGui.QWidget):
         self.cpuUsageBar.reset()
         self.memoryBar.reset()
         self.batteryBar.reset()
+        self.comSpeedEdit.setText("460800")
+        self.ipEdit.setText("192.168.50.2")
+        self.portEdit.setText("4000")

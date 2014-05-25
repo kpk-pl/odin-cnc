@@ -5,6 +5,7 @@ from PyQt4.QtCore import Qt
 
 from MsgDispatcher import MsgDispatcher
 import Queue
+from datetime import datetime
 
 class IncommingMessageHandler(QtCore.QObject):
     incomming = QtCore.pyqtSignal(str)
@@ -13,6 +14,7 @@ class IncommingMessageHandler(QtCore.QObject):
     updMemUsage = QtCore.pyqtSignal(int)
     updTelemetry = QtCore.pyqtSignal(tuple)
     updCurrentSpeed = QtCore.pyqtSignal(tuple)
+    rc5Input = QtCore.pyqtSignal(int)
     reset = QtCore.pyqtSignal()
     
     def __init__(self, input_queue):
@@ -54,12 +56,15 @@ class IncommingMessageHandler(QtCore.QObject):
             lambda payload: self.updTelemetry.emit((
             float(payload.match.group(2)), 
             float(payload.match.group(3)), 
-            float(payload.match.group(4)))))
-        self.dispatcher.register(r"(odin>)?\[Speed\] L: (-?\d+.\d+) R: (-?\d+.\d+)$",
+            float(payload.match.group(4)),
+            datetime.now())))
+        self.dispatcher.register(r"^(odin>)?\[Speed\] L: (-?\d+.\d+) R: (-?\d+.\d+)$",
             lambda payload: self.updCurrentSpeed.emit((
             float(payload.match.group(2)), 
             float(payload.match.group(3)))))
-        self.dispatcher.register(r"(odin>)?Reset!$", lambda payload: self.reset.emit())
+        self.dispatcher.register(r"^(odin>)?Reset!$", lambda payload: self.reset.emit())
+        self.dispatcher.register(r"^(odin>)?[RC5] Received (\d+)$",
+            lambda payload: self.rc5Input.emit(payload.match.group(2)))
             
 
     
