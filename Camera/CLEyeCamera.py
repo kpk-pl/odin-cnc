@@ -127,7 +127,7 @@ class CLEyeDLL:
         
 class CLEyeException(Exception):
     def __init__(self, str):
-        self.value = value
+        self.value = str
     def __str__(self):
         return repr(self.value)
     
@@ -147,8 +147,9 @@ class CLEyeCamera:
             self._CLDLL.CLEyeDestroyCamera(self._cam)
             raise CLEyeException("Cannot start camera")  
     def __del__(self):
-        self._CLDLL.CLEyeCameraStop(self._cam)
-        self._CLDLL.CLEyeDestroyCamera(self._cam)
+        if self._cam:
+            self._CLDLL.CLEyeCameraStop(self._cam)
+            self._CLDLL.CLEyeDestroyCamera(self._cam)
     def setParam(self, param, value):
         return self._CLDLL.CLEyeSetCameraParameter(self._cam, param, value)
     def getParam(self, param):
