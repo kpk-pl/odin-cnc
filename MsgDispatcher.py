@@ -4,8 +4,6 @@ import re
 import types
 import Queue
 
-
-
 class Rule:
     def __init__(self, regexp, handler):
         self.regexp = regexp

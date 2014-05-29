@@ -8,6 +8,7 @@ from Logger import Logger
 from IncommingMessageHandler import IncommingMessageHandler
 from TrajectoryTab import TrajectoryTab
 from TelemetryTab import TelemetryTab
+from CameraTab import CameraTab
 from QHistoryLineEdit import QHistoryLineEdit
 
 class MainWindow(QtGui.QMainWindow):
@@ -100,6 +101,7 @@ class MainWindow(QtGui.QMainWindow):
     def resetDefault(self):
         self.leftPanel.resetDefault()
         self.telemetryPanel.resetDefault()
+        self.cameraPanel.resetDefault()
         
     def sendComm(self, msg_list):
         if self.connected:
@@ -209,7 +211,7 @@ class MainWindow(QtGui.QMainWindow):
         self.motorsPanel = QtGui.QWidget()
         self.trajectoryPanel = TrajectoryTab()
         self.sdPanel = QtGui.QWidget()
-        self.plotsPanel = QtGui.QWidget()
+        self.cameraPanel = CameraTab()
         
         self.centerPanel = QtGui.QTabWidget()
         self.centerPanel.setMinimumHeight(400)
@@ -218,7 +220,7 @@ class MainWindow(QtGui.QMainWindow):
         self.centerPanel.addTab(self.motorsPanel, "Motors")
         self.centerPanel.addTab(self.trajectoryPanel, "Trajectory")
         self.centerPanel.addTab(self.sdPanel, "SD card")
-        self.centerPanel.addTab(self.plotsPanel, "Plots")        
+        self.centerPanel.addTab(self.cameraPanel, "Camera")        
         
         ### SPLITTER
         splitter = QtGui.QSplitter()
