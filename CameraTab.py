@@ -15,6 +15,8 @@ class CameraThread(QtCore.QObject):
     connected = QtCore.pyqtSignal()
     disconnected = QtCore.pyqtSignal()
     message = QtCore.pyqtSignal(str)
+    fpsUpdated = QtCore.pyqtSignal(float)
+    telemetry = QtCore.pyqtSignal(tuple)
     
     def __init__(self, parent=None):
         super(CameraThread, self).__init__(parent)
@@ -29,6 +31,18 @@ class CameraThread(QtCore.QObject):
     def setup(self):
         self.runTimer = QtCore.QTimer()
         self.runTimer.timeout.connect(self.mainLoop)
+        self.fpsTimer = QtCore.QTimer()
+        self.fpsTimer.timeout.connect(self.calcFPS)
+        self.fpsSTime = time.clock()
+        self.fpsCounter = 0
+        
+    @QtCore.pyqtSlot()
+    def calcFPS(self):
+        etime = time.clock()
+        fps = float(self.fpsCounter)/(etime-self.fpsSTime)
+        self.fpsSTime = etime
+        self.fpsCounter = 0
+        self.fpsUpdated.emit(fps)
     
     @QtCore.pyqtSlot(float)
     def connect(self, frameRate):
@@ -38,7 +52,7 @@ class CameraThread(QtCore.QObject):
             self.message.emit("Cannot initialize camera")
             Logger.getInstance().put(Logger.ERROR, "Cannot initialize camera: " + str(e))
             return
-            
+        
         self.cam.setParam(CL.CLEYE_AUTO_GAIN, False)
         self.cam.setParam(CL.CLEYE_AUTO_EXPOSURE, False)
         self.cam.setParam(CL.CLEYE_AUTO_WHITEBALANCE, True)
@@ -46,14 +60,20 @@ class CameraThread(QtCore.QObject):
         self.cam.setParam(CL.CLEYE_EXPOSURE, 400)
         
         self.frame = None
+        self.updateDiv = int(ceil(float(frameRate)/10.0))
+        self.updateCounter = 0
         
         self.runTimer.start(0)
+        self.fpsCounter = 0
+        self.fpsSTime = time.clock()
+        self.fpsTimer.start(1000)
         self.connected.emit()
         Logger.getInstance().put(Logger.INFO, "Camera thread connected camera")
         
     @QtCore.pyqtSlot()
     def disconnect(self):  
         self.runTimer.stop()
+        self.fpsTimer.stop()
         del self.cam
         self.disconnected.emit()
         Logger.getInstance().put(Logger.INFO, "Camera thread disconnected camera")
@@ -65,12 +85,18 @@ class CameraThread(QtCore.QObject):
         else:
             self.cam.getFrameX(self.frame)
         
-        if self.layers == 1:
-            qimg = QtGui.QImage(self.frame.tostring(), self.width, self.height, QtGui.QImage.Format_Indexed8)
-            qimg.setColorTable(self.colorTable)
-        else:
-            qimg = QtGui.QImage(self.frame.tostring(), self.width, self.height, QtGui.QImage.Format_RGB32).rgbSwapped()
-        self.frameCaptured.emit(qimg)
+        self.fpsCounter += 1
+        self.updCounter += 1
+        
+        if self.updCounter >= self.updateDiv:
+            if self.layers == 1:
+                qimg = QtGui.QImage(self.frame.tostring(), self.width, self.height, QtGui.QImage.Format_Indexed8)
+                qimg.setColorTable(self.colorTable)
+            else:
+                qimg = QtGui.QImage(self.frame.tostring(), self.width, self.height, QtGui.QImage.Format_RGB32).rgbSwapped()
+            self.frameCaptured.emit(qimg)
+            
+            self.updCounter = 0
 
         
         
@@ -82,9 +108,6 @@ class CameraTab(QtGui.QWidget):
         self.cameraThread = QtCore.QThread()
         self.cameraThreadObject.moveToThread(self.cameraThread)
         
-        self.fpsTimer = QtCore.QTimer()
-        self.fpsTimer.timeout.connect(self.fpsTimerHandle)
-        
         self.setupGUI()
         
         self.settingsStartStopBtn.clicked.connect(self.connectButtonClicked)
@@ -93,20 +116,13 @@ class CameraTab(QtGui.QWidget):
         self.cameraThreadObject.message.connect(self.settingsStatusLabel.setText)
         self.cameraThreadObject.connected.connect(self.connected)
         self.cameraThreadObject.disconnected.connect(self.disconected)
+        self.cameraThreadObject.fpsUpdated.connect(lambda x: self.settingsFPSCurrent.setText("%.1f" % (x)))
         
         self.cameraThread.start()
         
     def __del__(self):
         self.cameraThread.quit()
         self.cameraThread.wait()
-       
-    @QtCore.pyqtSlot()
-    def fpsTimerHandle(self):
-        ctime = time.clock()
-        fps = float(self.fpsFrameCounter) / (ctime-self.fpsSTime);
-        self.fpsFrameCounter = 0
-        self.fpsSTime = ctime
-        self.settingsFPSCurrent.setText("%.1f" % (fps))
        
     @QtCore.pyqtSlot()
     def connectButtonClicked(self):
@@ -122,29 +138,30 @@ class CameraTab(QtGui.QWidget):
     @QtCore.pyqtSlot()
     def connected(self):
         self.settingsStartStopBtn.setText("Stop")
-        self.fpsSTime = time.clock()
-        self.fpsFrameCounter = 0
-        self.fpsTimer.start(1000)
         Logger.getInstance().put(Logger.INFO, "Camera started")
         
     @QtCore.pyqtSlot()
     def disconected(self):
         self.settingsStartStopBtn.setText("Start")
-        self.fpsTimer.stop()
         Logger.getInstance().put(Logger.INFO, "Camera stopped")
            
     @QtCore.pyqtSlot(QtGui.QImage)
     def updateFrame(self, image):
-        self.fpsFrameCounter += 1
-        pixmap = QtGui.QPixmap.fromImage(image)
-        scaledPixMap = pixmap.scaled(self.frameLabel.size(), Qt.KeepAspectRatio)
-        self.frameLabel.setPixmap(scaledPixMap)
+        if self.settingsShowCapture.isChecked():
+            pixmap = QtGui.QPixmap.fromImage(image)
+            scaledPixMap = pixmap.scaled(self.frameLabel.size(), Qt.KeepAspectRatio)
+            self.frameLabel.setPixmap(scaledPixMap)
        
     def resetDefault(self):
         self.settingsStartStopBtn.setText("Start")
         self.settingsFPSCurrent.setText("?")
         self.settingsShowCapture.setChecked(False)
         self.settingsStatusLabel.setText("OK")
+        
+        self.telemetryX.setText("?")
+        self.telemetryY.setText("?")
+        self.telemetryODeg.setText("?")
+        self.telemetryORad.setText("?")
 
     def setupGUI(self):
         # main layout
