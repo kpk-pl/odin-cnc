@@ -9,6 +9,7 @@ from datetime import datetime
 from Logger import Logger
 from Camera import CLEyeCamera as CL
 import time
+import math
 
 class CameraThread(QtCore.QObject):
     frameCaptured = QtCore.pyqtSignal(QtGui.QImage)
@@ -60,7 +61,7 @@ class CameraThread(QtCore.QObject):
         self.cam.setParam(CL.CLEYE_EXPOSURE, 400)
         
         self.frame = None
-        self.updateDiv = int(ceil(float(frameRate)/10.0))
+        self.updateDiv = int(math.ceil(float(frameRate)/10.0))
         self.updateCounter = 0
         
         self.runTimer.start(0)
@@ -68,6 +69,7 @@ class CameraThread(QtCore.QObject):
         self.fpsSTime = time.clock()
         self.fpsTimer.start(1000)
         self.connected.emit()
+        self.message.emit('Connected')
         Logger.getInstance().put(Logger.INFO, "Camera thread connected camera")
         
     @QtCore.pyqtSlot()
@@ -76,6 +78,7 @@ class CameraThread(QtCore.QObject):
         self.fpsTimer.stop()
         del self.cam
         self.disconnected.emit()
+        self.message.emit('Disconnected')
         Logger.getInstance().put(Logger.INFO, "Camera thread disconnected camera")
         
     def mainLoop(self):
@@ -86,9 +89,11 @@ class CameraThread(QtCore.QObject):
             self.cam.getFrameX(self.frame)
         
         self.fpsCounter += 1
-        self.updCounter += 1
+        self.updateCounter += 1
         
-        if self.updCounter >= self.updateDiv:
+        self.telemetry.emit((0, 0, 0))
+        
+        if self.updateCounter >= self.updateDiv:
             if self.layers == 1:
                 qimg = QtGui.QImage(self.frame.tostring(), self.width, self.height, QtGui.QImage.Format_Indexed8)
                 qimg.setColorTable(self.colorTable)
@@ -96,11 +101,13 @@ class CameraThread(QtCore.QObject):
                 qimg = QtGui.QImage(self.frame.tostring(), self.width, self.height, QtGui.QImage.Format_RGB32).rgbSwapped()
             self.frameCaptured.emit(qimg)
             
-            self.updCounter = 0
+            self.updateCounter = 0
 
         
         
 class CameraTab(QtGui.QWidget):
+    telemetrySend = QtCore.pyqtSignal(tuple)
+
     def __init__(self, parent=None):
         super(CameraTab, self).__init__(parent)
         
@@ -117,6 +124,7 @@ class CameraTab(QtGui.QWidget):
         self.cameraThreadObject.connected.connect(self.connected)
         self.cameraThreadObject.disconnected.connect(self.disconected)
         self.cameraThreadObject.fpsUpdated.connect(lambda x: self.settingsFPSCurrent.setText("%.1f" % (x)))
+        self.cameraThreadObject.telemetry.connect(self.telemetryFromCamera)
         
         self.cameraThread.start()
         
@@ -134,7 +142,16 @@ class CameraTab(QtGui.QWidget):
         else:
             QtCore.QMetaObject.invokeMethod(self.cameraThreadObject, 'disconnect', Qt.QueuedConnection)
             Logger.getInstance().put(Logger.INFO, "Trying to stop camera")
-       
+           
+    @QtCore.pyqtSlot(tuple)
+    def telemetryFromCamera(self, telemetry):
+        if self.settingsSendUpdates.isChecked():
+            self.telemetrySend.emit(telemetry)
+        self.telemetryX.setText("%.2f" % (telemetry[0]))
+        self.telemetryY.setText("%.2f" % (telemetry[1]))
+        self.telemetryODeg.setText("%.2f" % (telemetry[2]))
+        self.telemetryORad.setText("%.2f" % (telemetry[2]))
+      
     @QtCore.pyqtSlot()
     def connected(self):
         self.settingsStartStopBtn.setText("Stop")
@@ -156,6 +173,7 @@ class CameraTab(QtGui.QWidget):
         self.settingsStartStopBtn.setText("Start")
         self.settingsFPSCurrent.setText("?")
         self.settingsShowCapture.setChecked(False)
+        self.settingsSendUpdates.setChecked(False)
         self.settingsStatusLabel.setText("OK")
         
         self.telemetryX.setText("?")
@@ -182,10 +200,12 @@ class CameraTab(QtGui.QWidget):
         
         # settings
         self.settingsStartStopBtn = QtGui.QPushButton("Start")
-        self.settingsFPSSelection = pg.SpinBox(bounds=[30,188], int=True, dec=False, minStep=1, step=10, suffix="fps")
+        self.settingsFPSSelection = pg.SpinBox(bounds=[1,188], int=True, dec=False, minStep=1, step=10, suffix="fps")
+        self.settingsFPSSelection.setValue(30)
         self.settingsFPSCurrent = QtGui.QLineEdit()
         self.settingsFPSCurrent.setReadOnly(True)
         self.settingsShowCapture = QtGui.QCheckBox("Show live capture")
+        self.settingsSendUpdates = QtGui.QCheckBox("Send updates to robot")
         self.settingsStatusLabel = QtGui.QLabel("OK")
         
         settingsBox = QtGui.QGroupBox("Settings")
@@ -197,7 +217,8 @@ class CameraTab(QtGui.QWidget):
         settingsLayout.addWidget(QtGui.QLabel("Current FPS"), 1, 0, 1, 1)
         settingsLayout.addWidget(self.settingsFPSCurrent, 1, 1, 1, 1)
         settingsLayout.addWidget(self.settingsShowCapture, 2, 0, 1, 2)
-        settingsLayout.addWidget(self.settingsStatusLabel, 3, 0, 1, 2)
+        settingsLayout.addWidget(self.settingsSendUpdates, 3, 0, 1, 2)
+        settingsLayout.addWidget(self.settingsStatusLabel, 4, 0, 1, 2)
         settingsBox.setLayout(settingsLayout)
         leftLayout.addWidget(settingsBox)
         

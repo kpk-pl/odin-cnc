@@ -143,6 +143,7 @@ class MainWindow(QtGui.QMainWindow):
         self.leftPanel.telemetryRefreshChanged.connect(self.handleTelemetryRefreshChange)
         self.leftPanel.telemetryRefreshChanged.connect(self.handleSpeedRefreshChange)
         self.telemetryPanel.telemetryRefreshChanged.connect(self.handleTelemetryRefreshChange)
+        self.cameraPanel.telemetrySend.connect(lambda upd: self.sendComm("#%.6f %.6f %.6f" % upd))
         
     def configureTimers(self):
         @QtCore.pyqtSlot() 
