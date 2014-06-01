@@ -19,23 +19,17 @@ def serial_ports():
         path = 'HARDWARE\\DEVICEMAP\\SERIALCOMM'
         try:
             key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, path)
-        except WindowsError:
-            raise IterationError
-        for i in itertools.count():
-            try:
-                val = winreg.EnumValue(key, i)
-                m = re.match('^COM(\d+)$', str(val[1]))
-                if m:
-                    ports.append("COM"+m.group(1))
-            except EnvironmentError:
-                break
-        # for i in range(256):
-            # try:
-                # s = serial.Serial(i)
-                # s.close()
-                # ports.append('COM' + str(i + 1))
-            # except serial.SerialException:
-                # pass
+        except WindowsError as e:
+            Logger.getInstance().warn("Serial ports scanner: Cannot open Windows registry key: " + str(e))
+        else:
+            for i in itertools.count():
+                try:
+                    val = winreg.EnumValue(key, i)
+                    m = re.match('^COM(\d+)$', str(val[1]))
+                    if m:
+                        ports.append("COM"+m.group(1))
+                except EnvironmentError:
+                    break
     else: # unix
         for port in list_ports.comports():
             ports.append(port[0])
@@ -186,7 +180,7 @@ class LeftPanel(QtGui.QWidget):
         self.comSpeedLabel.hide()
         self.comSelect.hide()
         self.comSpeedEdit.hide()
-        Logger.getInstance().put(Logger.INFO, "WiFi connection chosen")
+        Logger.getInstance().debug("WiFi connection chosen")
         self.connMode = "WiFi"
      
     @QtCore.pyqtSlot() 
@@ -202,7 +196,7 @@ class LeftPanel(QtGui.QWidget):
         self.comSelect.addItems(list(serial_ports()))
         self.comSelect.show()
         self.comSpeedEdit.show()
-        Logger.getInstance().put(Logger.INFO, "COM connection chosen")
+        Logger.getInstance().debug("COM connection chosen")
         self.connMode = "COM"
         
     @QtCore.pyqtSlot() 
@@ -210,12 +204,12 @@ class LeftPanel(QtGui.QWidget):
         if self.connMode == "WiFi":
             ip = self.ipEdit.text()
             port = self.portEdit.text()
-            Logger.getInstance().put(Logger.INFO, "Request connection to %s:%s" % (ip, port))
+            Logger.getInstance().info("Request connection to %s:%s" % (ip, port))
             self.connectRequested.emit(("WiFi", ip, port))
         else: # COM
             com = self.comSelect.currentText()
             speed = self.comSpeedEdit.text()
-            Logger.getInstance().put(Logger.INFO, "Request connection to %s @%s" % (com, speed))
+            Logger.getInstance().info("Request connection to %s @%s" % (com, speed))
             self.connectRequested.emit(("COM", com, speed))
             
     @QtCore.pyqtSlot(QtCore.QPoint)

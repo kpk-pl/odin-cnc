@@ -41,10 +41,10 @@ class CameraTab(QtGui.QWidget):
             fps = float(self.settingsFPSSelection.value())
             QtCore.QMetaObject.invokeMethod(self.cameraThreadObject, 'connect', Qt.QueuedConnection, 
                 QtCore.Q_ARG(float, fps))
-            Logger.getInstance().put(Logger.INFO, "Trying to start camera at %.2f fps" % (fps))
+            Logger.getInstance().info("Trying to start camera at %.2f fps" % (fps))
         else:
             QtCore.QMetaObject.invokeMethod(self.cameraThreadObject, 'disconnect', Qt.QueuedConnection)
-            Logger.getInstance().put(Logger.INFO, "Trying to stop camera")
+            Logger.getInstance().info("Trying to stop camera")
            
     @QtCore.pyqtSlot(tuple)
     def telemetryFromCamera(self, telemetry):
@@ -58,12 +58,12 @@ class CameraTab(QtGui.QWidget):
     @QtCore.pyqtSlot()
     def connected(self):
         self.settingsStartStopBtn.setText("Stop")
-        Logger.getInstance().put(Logger.INFO, "Camera started")
+        Logger.getInstance().info("Camera started")
         
     @QtCore.pyqtSlot()
     def disconected(self):
         self.settingsStartStopBtn.setText("Start")
-        Logger.getInstance().put(Logger.INFO, "Camera stopped")
+        Logger.getInstance().info("Camera stopped")
            
     @QtCore.pyqtSlot(QtGui.QImage)
     def updateFrame(self, image):

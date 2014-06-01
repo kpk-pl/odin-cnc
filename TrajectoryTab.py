@@ -28,4 +28,4 @@ class TrajectoryTab(QtGui.QWidget):
         if fileName:
             self.trajectoryPathFileLabel.setText(fileName)
             self.trajectoryFileChosen.emit(fileName)
-            Logger.getInstance.put(Logger.INFO, "Trajectory file chosen: " + fileName)
+            Logger.getInstance.debug("Trajectory file chosen: " + fileName)

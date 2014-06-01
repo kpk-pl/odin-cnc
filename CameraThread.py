@@ -48,7 +48,7 @@ class CameraThread(QtCore.QObject):
             self.cam = CL.CLEyeCamera(0, mode=CL.CLEYE_MONO_RAW, resolution=CL.CLEYE_VGA, frameRate=frameRate)
         except CL.CLEyeException as e:
             self.message.emit("Cannot initialize camera")
-            Logger.getInstance().put(Logger.ERROR, "Cannot initialize camera: " + str(e))
+            Logger.getInstance().error("Cannot initialize camera: " + str(e))
             return
         
         self.cam.setParam(CL.CLEYE_AUTO_GAIN, False)
@@ -67,7 +67,7 @@ class CameraThread(QtCore.QObject):
         self.fpsTimer.start(1000)
         self.connected.emit()
         self.message.emit('Connected')
-        Logger.getInstance().put(Logger.INFO, "Camera thread connected camera")
+        Logger.getInstance().info("Camera thread connected camera")
         
     @QtCore.pyqtSlot()
     def disconnect(self):  
@@ -76,7 +76,7 @@ class CameraThread(QtCore.QObject):
         del self.cam
         self.disconnected.emit()
         self.message.emit('Disconnected')
-        Logger.getInstance().put(Logger.INFO, "Camera thread disconnected camera")
+        Logger.getInstance().debug("Camera thread disconnected camera")
         
     def mainLoop(self):
         if self.frame is None:

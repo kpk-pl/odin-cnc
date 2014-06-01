@@ -30,7 +30,7 @@ class MainWindow(QtGui.QMainWindow):
         self.resize(1024,768)
         
         Logger.getInstance().update.connect(self.logConsole.appendPlainText)
-        Logger.getInstance().put(Logger.INFO, "Main window is up")
+        Logger.getInstance().info("Main window is up")
         
         self.connectDone(False)
         

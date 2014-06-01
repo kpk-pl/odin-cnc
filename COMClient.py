@@ -40,7 +40,7 @@ class COMClient(threading.Thread):
             try:
                 text = self._socket.read(1)
             except serial.SerialException as e:
-                Logger.getInstance().put(Logger.ERROR, "Error in reading from COM port: " + str(e))
+                Logger.getInstance().error("Error in reading from COM port: " + str(e))
                 return
             if text:
                 self._inbuffer += text
@@ -59,7 +59,7 @@ class COMClient(threading.Thread):
                 try:
                     send = self._socket.write(self._outbuffer)
                 except Exception as e:
-                    Logger.getInstance().put(Logger.ERROR, "Error in sending via COM port: " + str(e))
+                    Logger.getInstance().error("Error in sending via COM port: " + str(e))
                     break
                 else:
                     self._outbuffer = self._outbuffer[send:]

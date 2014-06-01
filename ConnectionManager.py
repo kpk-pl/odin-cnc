@@ -28,11 +28,11 @@ class ConnectionManager(QtCore.QObject):
     def check(self):
         if self.tcpClient and not self.tcpClient.isAlive():
             self.tcpClient = None
-            Logger.getInstance().put(Logger.ERROR, "WiFi connection closed unexpectedly")
+            Logger.getInstance().error("WiFi connection closed unexpectedly")
             self.result.emit(False)
         if self.comClient and not self.comClient.isAlive():
             self.comClient = None
-            Logger.getInstance().put(Logger.ERROR, "COM connection closed unexpectedly")
+            Logger.getInstance().error("COM connection closed unexpectedly")
             self.result.emit(False)
         
     @QtCore.pyqtSlot(tuple)    
@@ -43,19 +43,19 @@ class ConnectionManager(QtCore.QObject):
                 self.tcpClient = TCPClient((str(parameters[1]), int(parameters[2])), self.out_q, self.in_q)
             except Exception as e:
                 self.tcpClient = None
-                Logger.getInstance().put(Logger.ERROR, "Cannot start WiFi connection: " + str(e))
+                Logger.getInstance().error("Cannot start WiFi connection: " + str(e))
             else:
                 self.tcpClient.start()
-                Logger.getInstance().put(Logger.INFO, "Connected to WiFi server")
+                Logger.getInstance().info("Connected to WiFi server")
         elif parameters[0] == "COM":
             try:
                 self.comClient = COMClient(str(parameters[1]), int(parameters[2]), self.out_q, self.in_q)
             except Exception as e:
                 self.comClient = None
-                Logger.getInstance().put(Logger.ERROR, "Cannot start serial connection: " + str(e))
+                Logger.getInstance().error("Cannot start serial connection: " + str(e))
             else:
                 self.comClient.start()
-                Logger.getInstance().put(Logger.INFO, "Connected to COM server")
+                Logger.getInstance().info("Connected to COM server")
         if self.comClient or self.tcpClient:
             self.result.emit(True)
         else:
@@ -65,8 +65,8 @@ class ConnectionManager(QtCore.QObject):
         if self.tcpClient is not None:
             self.tcpClient.join()
             self.tcpClient = None
-            Logger.getInstance().put(Logger.INFO, "Stopping TCP Client")
+            Logger.getInstance().info("Stopping TCP Client")
         if self.comClient is not None:
             self.comClient.join()
             self.comClient = None
-            Logger.getInstance().put(Logger.INFO, "Stopping COM Client")
+            Logger.getInstance().info("Stopping COM Client")

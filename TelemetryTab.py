@@ -7,8 +7,6 @@ import pyqtgraph as pg
 import math
 from datetime import datetime
 
-from Logger import Logger
-
 class TelemetryTab(QtGui.QWidget):
     telemetryRefreshChanged = QtCore.pyqtSignal(int)
 
