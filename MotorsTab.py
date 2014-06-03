@@ -8,6 +8,7 @@ import math
 from datetime import datetime
 
 from Logger import Logger
+from QLevelBar import QLevelBar
 
 class MotorsTab(QtGui.QWidget):
     
@@ -23,7 +24,7 @@ class MotorsTab(QtGui.QWidget):
         self.setLayout(layout)
         leftSideWdgt = QtGui.QWidget()
         leftSideWdgt.setSizePolicy(QtGui.QSizePolicy.Fixed, QtGui.QSizePolicy.Expanding)
-        leftSideWdgt.setFixedWidth(250);
+        leftSideWdgt.setFixedWidth(160);
         rightSideWdgt = QtGui.QTabWidget()
         layout.addWidget(leftSideWdgt)
         layout.addWidget(rightSideWdgt)
@@ -40,5 +41,29 @@ class MotorsTab(QtGui.QWidget):
         leftLayout.setMargin(0)
         leftSideWdgt.setLayout(leftLayout)
         
+        # speed bars
+        self.LSpeedActBar = QLevelBar(-8, 8, 0)
+        self.RSpeedActBar = QLevelBar(-8, 8, 0)
+        self.LSpeedSetBar = QLevelBar(-8, 8, 0)
+        self.LSpeedSetBar.setColor(QtGui.QColor(255,0,0,200))
+        self.RSpeedSetBar = QLevelBar(-8, 8, 0)
+        self.RSpeedSetBar.setColor(QtGui.QColor(255,0,0,200))
+        for bar in [self.LSpeedActBar, self.RSpeedActBar, self.LSpeedSetBar, self.RSpeedSetBar]:
+            bar.setOrientation(Qt.Vertical)
+            bar.setMinimumHeight(120)
+        speedLayout = QtGui.QGridLayout()
+        speedLayout.setMargin(0)
+        speedLayout.addWidget(self.LSpeedActBar, 0, 0, 1, 1)
+        speedLayout.addWidget(self.LSpeedSetBar, 0, 1, 1, 1)
+        speedLayout.addWidget(self.RSpeedActBar, 0, 2, 1, 1)
+        speedLayout.addWidget(self.RSpeedSetBar, 0, 3, 1, 1)
+        llabel = QtGui.QLabel("Left\n[rad/s]")
+        rlabel = QtGui.QLabel("Right\n[rad/s]")
+        llabel.setAlignment(Qt.AlignCenter)
+        rlabel.setAlignment(Qt.AlignCenter)
+        speedLayout.addWidget(llabel, 1, 0, 1, 2)
+        speedLayout.addWidget(rlabel, 1, 2, 1, 2)
+        leftLayout.addLayout(speedLayout)
+        
         # end
-        leftLayout.addStretch()
+        leftLayout.addStretch(1)

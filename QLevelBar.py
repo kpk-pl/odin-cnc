@@ -121,4 +121,7 @@ class QLevelBar(QtGui.QWidget):
             rect = fm.boundingRect(val)
             painter.setPen(self.fontPen)
             painter.drawText((size.width()-rect.width())/2-1, (size.height()+rect.height())/2-4, val)  
+         
+        painter.setBrush(QtGui.QBrush()) 
+        painter.drawRect(0,0,size.width(), size.height());
     
