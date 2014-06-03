@@ -9,6 +9,7 @@ from IncommingMessageHandler import IncommingMessageHandler
 from TrajectoryTab import TrajectoryTab
 from TelemetryTab import TelemetryTab
 from CameraTab import CameraTab
+from MotorsTab import MotorsTab
 from QHistoryLineEdit import QHistoryLineEdit
 
 class MainWindow(QtGui.QMainWindow):
@@ -208,7 +209,7 @@ class MainWindow(QtGui.QMainWindow):
         
         ### CENTER PANEL
         self.telemetryPanel = TelemetryTab()
-        self.motorsPanel = QtGui.QWidget()
+        self.motorsPanel = MotorsTab()
         self.trajectoryPanel = TrajectoryTab()
         self.sdPanel = QtGui.QWidget()
         self.cameraPanel = CameraTab()

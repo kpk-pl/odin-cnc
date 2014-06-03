@@ -133,7 +133,7 @@ class TelemetryTab(QtGui.QWidget):
         
         # left layout
         leftLayout = QtGui.QVBoxLayout()
-        layout.setMargin(0)
+        leftLayout.setMargin(0)
         leftSideWdgt.setLayout(leftLayout)
         
         # stats
