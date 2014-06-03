@@ -159,6 +159,8 @@ class LeftPanel(QtGui.QWidget):
         self.statsFrame.customContextMenuRequested.connect(self.showContextMenuStats)
         self.telemetryFrame.customContextMenuRequested.connect(self.showContextMenuTelemetry)
         
+        QtGui.QShortcut(QtGui.QKeySequence("Ctrl+Shift+C"), self, self.connectToTarget, None)
+        
     @QtCore.pyqtSlot(tuple)
     def updateTelemetry(self, telemetry):
         self.posXEdit.setText(str(telemetry[0]))

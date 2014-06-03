@@ -17,6 +17,10 @@ class MotorsTab(QtGui.QWidget):
         
         self.setupGUI()
         
+    def resetDefault(self):
+        for bar in [self.LSpeedActBar, self.RSpeedActBar, self.LSpeedSetBar, self.RSpeedSetBar]:
+            bar.setValue(0.0)
+        
     def setupGUI(self):
         # main layout
         layout = QtGui.QHBoxLayout()
@@ -53,16 +57,16 @@ class MotorsTab(QtGui.QWidget):
             bar.setMinimumHeight(120)
         speedLayout = QtGui.QGridLayout()
         speedLayout.setMargin(0)
-        speedLayout.addWidget(self.LSpeedActBar, 0, 0, 1, 1)
-        speedLayout.addWidget(self.LSpeedSetBar, 0, 1, 1, 1)
-        speedLayout.addWidget(self.RSpeedActBar, 0, 2, 1, 1)
-        speedLayout.addWidget(self.RSpeedSetBar, 0, 3, 1, 1)
         llabel = QtGui.QLabel("Left\n[rad/s]")
         rlabel = QtGui.QLabel("Right\n[rad/s]")
         llabel.setAlignment(Qt.AlignCenter)
         rlabel.setAlignment(Qt.AlignCenter)
-        speedLayout.addWidget(llabel, 1, 0, 1, 2)
-        speedLayout.addWidget(rlabel, 1, 2, 1, 2)
+        speedLayout.addWidget(llabel, 0, 0, 1, 2)
+        speedLayout.addWidget(rlabel, 0, 2, 1, 2)
+        speedLayout.addWidget(self.LSpeedActBar, 1, 0, 1, 1)
+        speedLayout.addWidget(self.LSpeedSetBar, 1, 1, 1, 1)
+        speedLayout.addWidget(self.RSpeedActBar, 1, 2, 1, 1)
+        speedLayout.addWidget(self.RSpeedSetBar, 1, 3, 1, 1)
         leftLayout.addLayout(speedLayout)
         
         # end

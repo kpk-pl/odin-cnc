@@ -12,6 +12,16 @@ from CameraTab import CameraTab
 from MotorsTab import MotorsTab
 from QHistoryLineEdit import QHistoryLineEdit
 
+# Shortcuts
+# Ctrl+Shift+C - Connect button click
+# Alt+F - menu File
+# Alt+H - menu help
+# Alt+T - Telemetry tab
+# Alt+M - Motots tab
+# Alt+R - Trajectory tba
+# Alt+S - SD card tab
+# Alt+C - Camera tab
+
 class MainWindow(QtGui.QMainWindow):
     def __init__(self, incomming_queue, outgoing_queue):
         super(MainWindow, self).__init__()
@@ -103,6 +113,7 @@ class MainWindow(QtGui.QMainWindow):
         self.leftPanel.resetDefault()
         self.telemetryPanel.resetDefault()
         self.cameraPanel.resetDefault()
+        self.motorsPanel.resetDefault()
         
     def sendComm(self, msg_list):
         if self.connected:
@@ -218,11 +229,11 @@ class MainWindow(QtGui.QMainWindow):
         self.centerPanel = QtGui.QTabWidget()
         self.centerPanel.setMinimumHeight(400)
         self.centerPanel.setSizePolicy(QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Expanding)
-        self.centerPanel.addTab(self.telemetryPanel, "Telemetry")
-        self.centerPanel.addTab(self.motorsPanel, "Motors")
-        self.centerPanel.addTab(self.trajectoryPanel, "Trajectory")
-        self.centerPanel.addTab(self.sdPanel, "SD card")
-        self.centerPanel.addTab(self.cameraPanel, "Camera")        
+        self.centerPanel.addTab(self.telemetryPanel, "&Telemetry")
+        self.centerPanel.addTab(self.motorsPanel, "&Motors")
+        self.centerPanel.addTab(self.trajectoryPanel, "T&rajectory")
+        self.centerPanel.addTab(self.sdPanel, "&SD card")
+        self.centerPanel.addTab(self.cameraPanel, "&Camera")        
         
         ### SPLITTER
         splitter = QtGui.QSplitter()
