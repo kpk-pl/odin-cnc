@@ -31,7 +31,7 @@ class MainWindow(QtGui.QMainWindow):
         self.resize(1024,768)
         
         Logger.getInstance().update.connect(self.logConsole.appendPlainText)
-        Logger.getInstance().put(Logger.INFO, "Main window is up")
+        Logger.getInstance().info("Main window is up")
         
         self.connectDone(False)
         
@@ -144,6 +144,7 @@ class MainWindow(QtGui.QMainWindow):
         self.leftPanel.telemetryRefreshChanged.connect(self.handleTelemetryRefreshChange)
         self.leftPanel.telemetryRefreshChanged.connect(self.handleSpeedRefreshChange)
         self.telemetryPanel.telemetryRefreshChanged.connect(self.handleTelemetryRefreshChange)
+        self.cameraPanel.telemetrySend.connect(lambda upd: self.sendComm("#%.6f %.6f %.6f" % upd))
         
     def configureTimers(self):
         @QtCore.pyqtSlot() 

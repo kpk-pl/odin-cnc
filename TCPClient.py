@@ -45,7 +45,7 @@ class TCPClient(threading.Thread):
                     try:
                         self._inbuffer += self._socket.recv(1024)
                     except Exception as e:
-                        Logger.getInstance().put(Logger.ERROR, "TCP error while receiving: " + str(e))
+                        Logger.getInstance().error("TCP error while receiving: " + str(e))
                     else:
                         splitted = self._inbuffer.splitlines()
                         if self._inbuffer.endswith('\n') or len(splitted) == 0:
@@ -58,13 +58,13 @@ class TCPClient(threading.Thread):
                     try:
                         send = self._socket.send(self._outbuffer)
                     except Exception as e:
-                        Logger.getInstance().put(Logger.ERROR, "TCP error while sending: " + str(e))
+                        Logger.getInstance().error("TCP error while sending: " + str(e))
                     else:
                         self._outbuffer = self._outbuffer[send:]
                 elif not self.outgoing.empty():
                     self._outbuffer += self.outgoing.get()
                 elif exceptional:
-                    Logger.getInstance().put(Logger.ERROR, "Error in TCP communication")
+                    Logger.getInstance().error("Error in TCP communication")
         self._alive.set()
 
     def join(self, timeout=None):
