@@ -7,6 +7,7 @@ import math
 
 from Logger import Logger
 from CameraThread import CameraThread
+from COMMngr import COMMngr
         
 class CameraTab(QtGui.QWidget):
     telemetrySend = QtCore.pyqtSignal(tuple)
@@ -21,6 +22,8 @@ class CameraTab(QtGui.QWidget):
         self.setupGUI()
         
         self.settingsStartStopBtn.clicked.connect(self.connectButtonClicked)
+        self.radioCOMRefreshButton.clicked.connect(self.refreshCOMPorts)
+        
         self.cameraThreadObject.frameCaptured.connect(self.updateFrame)
         self.cameraThread.started.connect(self.cameraThreadObject.setup)
         self.cameraThreadObject.message.connect(self.settingsStatusLabel.setText)
@@ -72,12 +75,21 @@ class CameraTab(QtGui.QWidget):
             scaledPixMap = pixmap.scaled(self.frameLabel.size(), Qt.KeepAspectRatio)
             self.frameLabel.setPixmap(scaledPixMap)
        
+    @QtCore.pyqtSlot()
+    def refreshCOMPorts(self):
+        current = self.radioCOMSelect.currentText()
+        self.radioCOMSelect.clear()
+        self.radioCOMSelect.addItems(list(COMMngr().getAllPorts()))
+        self.radioCOMSelect.setCurrentIndex(self.radioCOMSelect.findText(current))
+       
     def resetDefault(self):
         self.settingsStartStopBtn.setText("Start")
         self.settingsFPSCurrent.setText("?")
         self.settingsShowCapture.setChecked(False)
-        self.settingsSendUpdates.setChecked(False)
-        self.settingsStatusLabel.setText("OK")
+        self.settingsStatusLabel.setText("Stopped")
+        
+        self.radioStatusLabel.hide()
+        self.radioBaudrateEdit.setText("500000")
         
         self.telemetryX.setText("?")
         self.telemetryY.setText("?")
@@ -108,8 +120,7 @@ class CameraTab(QtGui.QWidget):
         self.settingsFPSCurrent = QtGui.QLineEdit()
         self.settingsFPSCurrent.setReadOnly(True)
         self.settingsShowCapture = QtGui.QCheckBox("Show live capture")
-        self.settingsSendUpdates = QtGui.QCheckBox("Send updates to robot")
-        self.settingsStatusLabel = QtGui.QLabel("OK")
+        self.settingsStatusLabel = QtGui.QLabel("Stopped")
         
         settingsBox = QtGui.QGroupBox("Settings")
         settingsLayout = QtGui.QGridLayout()
@@ -120,10 +131,36 @@ class CameraTab(QtGui.QWidget):
         settingsLayout.addWidget(QtGui.QLabel("Current FPS"), 1, 0, 1, 1)
         settingsLayout.addWidget(self.settingsFPSCurrent, 1, 1, 1, 1)
         settingsLayout.addWidget(self.settingsShowCapture, 2, 0, 1, 2)
-        settingsLayout.addWidget(self.settingsSendUpdates, 3, 0, 1, 2)
-        settingsLayout.addWidget(self.settingsStatusLabel, 4, 0, 1, 2)
+        settingsLayout.addWidget(self.settingsStatusLabel, 3, 0, 1, 2)
         settingsBox.setLayout(settingsLayout)
         leftLayout.addWidget(settingsBox)
+        
+        # radio
+        self.radioCOMSelect = QtGui.QComboBox()
+        self.radioCOMSelect.addItems(list(COMMngr().getAllPorts()))
+        self.radioBaudrateEdit = QtGui.QLineEdit("500000")
+        self.radioBaudrateEdit.setValidator(QtGui.QIntValidator(0, 10000000))
+        self.radioConnectButton = QtGui.QPushButton("Connect")
+        self.radioStatusLabel = QtGui.QLabel("Connected")
+        self.radioCOMRefreshButton = QtGui.QPushButton("R")
+        self.radioCOMRefreshButton.setMaximumWidth(25)
+        
+        radioBox = QtGui.QGroupBox("Radio transmitter")
+        radioLayout = QtGui.QGridLayout()
+        radioLayout.setSpacing(3)
+        radioLayout.setMargin(5)
+        radioLayout.addWidget(QtGui.QLabel("COM Port"), 0, 0, 1, 1)
+        radioLayout.addWidget(QtGui.QLabel("Baudrate"), 0, 2, 1, 1)
+        radioLayout.addWidget(self.radioCOMSelect, 1, 0, 1, 1)
+        radioLayout.addWidget(self.radioCOMRefreshButton, 1, 1, 1, 1)
+        radioLayout.addWidget(self.radioBaudrateEdit, 1, 2, 1, 1)
+        radioLayout.addWidget(self.radioStatusLabel, 2, 0, 1, 2)
+        radioLayout.addWidget(self.radioConnectButton, 2, 2, 1, 1)
+        radioLayout.setColumnStretch(0, 10)
+        radioLayout.setColumnStretch(1, 1)
+        radioLayout.setColumnStretch(2, 10)
+        radioBox.setLayout(radioLayout)
+        leftLayout.addWidget(radioBox)
         
         # telemetry
         self.telemetryX = QtGui.QLineEdit()

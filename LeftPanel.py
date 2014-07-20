@@ -164,9 +164,10 @@ class LeftPanel(QtGui.QWidget):
         self.portEdit.hide()
         self.comLabel.show()
         self.comSpeedLabel.show()
-        while self.comSelect.count():
-            self.comSelect.removeItem(0)
+        current = self.comSelect.currentText()
+        self.comSelect.clear()
         self.comSelect.addItems(list(COMMngr().getAllPorts()))
+        self.comSelect.setCurrentIndex(self.comSelect.findText(current))
         self.comSelect.show()
         self.comSpeedEdit.show()
         Logger.getInstance().debug("COM connection chosen")
