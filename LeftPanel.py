@@ -3,38 +3,9 @@
 from PyQt4 import QtCore, QtGui
 from PyQt4.QtCore import Qt
 
-import os, serial
-import _winreg as winreg
-import itertools
-import re
-from serial.tools import list_ports
-
+from COMMngr import COMMngr
 from Logger import Logger
-
 import QLevelBar
-
-def serial_ports():
-    ports = []
-    if os.name == 'nt': # windows
-        path = 'HARDWARE\\DEVICEMAP\\SERIALCOMM'
-        try:
-            key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, path)
-        except WindowsError as e:
-            Logger.getInstance().warn("Serial ports scanner: Cannot open Windows registry key: " + str(e))
-        else:
-            for i in itertools.count():
-                try:
-                    val = winreg.EnumValue(key, i)
-                    m = re.match('^COM(\d+)$', str(val[1]))
-                    if m:
-                        ports.append("COM"+m.group(1))
-                except EnvironmentError:
-                    break
-    else: # unix
-        for port in list_ports.comports():
-            ports.append(port[0])
-    return sorted(ports)
-      
 
 class LeftPanel(QtGui.QWidget):
     connectRequested = QtCore.pyqtSignal(tuple)
@@ -195,7 +166,7 @@ class LeftPanel(QtGui.QWidget):
         self.comSpeedLabel.show()
         while self.comSelect.count():
             self.comSelect.removeItem(0)
-        self.comSelect.addItems(list(serial_ports()))
+        self.comSelect.addItems(list(COMMngr().getAllPorts()))
         self.comSelect.show()
         self.comSpeedEdit.show()
         Logger.getInstance().debug("COM connection chosen")
