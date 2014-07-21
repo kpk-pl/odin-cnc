@@ -3,15 +3,15 @@
 from PyQt4 import QtCore, QtGui
 from PyQt4.QtCore import Qt
 import pyqtgraph as pg
-import math
+import math, struct
 
 from Logger import Logger
 from CameraThread import CameraThread
 from COMMngr import COMMngr
+from COMSSClient import COMSSClient
+import myThread
         
 class CameraTab(QtGui.QWidget):
-    telemetrySend = QtCore.pyqtSignal(tuple)
-
     def __init__(self, parent=None):
         super(CameraTab, self).__init__(parent)
         
@@ -20,9 +20,11 @@ class CameraTab(QtGui.QWidget):
         self.cameraThreadObject.moveToThread(self.cameraThread)
         
         self.setupGUI()
+        self.resetDefault()
         
         self.settingsStartStopBtn.clicked.connect(self.connectButtonClicked)
         self.radioCOMRefreshButton.clicked.connect(self.refreshCOMPorts)
+        self.radioConnectButton.clicked.connect(self.connectRadio)
         
         self.cameraThreadObject.frameCaptured.connect(self.updateFrame)
         self.cameraThread.started.connect(self.cameraThreadObject.setup)
@@ -37,6 +39,38 @@ class CameraTab(QtGui.QWidget):
     def __del__(self):
         self.cameraThread.quit()
         self.cameraThread.wait()
+        
+        if self.radioThread:
+            self.radioThread.quit()
+            self.radioThread.wait()
+       
+    @QtCore.pyqtSlot()
+    def connectRadio(self):
+        if self.radioConnectButton.text() == "Disconnect":
+            self.radioThread.quit()
+            self.radioThread.wait()
+            del self.radioThread
+            del self.radioThreadObject
+            self.radioConnectButton.setText("Connect")
+            self.radioStatusLabel.hide()
+            self.radioSendUpdates.setChecked(False)
+            Logger.getInstance().log("Radio connection closed")
+            return
+
+        com = str(self.radioCOMSelect.currentText())
+        br = str(self.radioBaudrateEdit.text())
+       
+        try:
+            self.radioThreadObject = COMSSClient(com, br)
+        except Exception as e:
+            Logger.getInstance().error("Cannot establish radio connection: " + str(e))
+        else:
+            self.radioThread = myThread.makeThread(self.radioThreadObject)
+            self.radioThreadObject.arrived.connect(lambda x: Logger.getInstance().debug(x.payload))
+            myThread.startThread(self.radioThreadObject)
+            self.radioStatusLabel.show()
+            Logger.getInstance().log("Radio connection established on " + com + " @" + br)
+            self.radioConnectButton.setText("Disconnect")
        
     @QtCore.pyqtSlot()
     def connectButtonClicked(self):
@@ -51,8 +85,14 @@ class CameraTab(QtGui.QWidget):
            
     @QtCore.pyqtSlot(tuple)
     def telemetryFromCamera(self, telemetry):
-        if self.settingsSendUpdates.isChecked():
-            self.telemetrySend.emit(telemetry)
+        if self.radioSendUpdates.isChecked():
+            try:
+                data = struct.pack('<3f', *telemetry)
+                #QtCore.QMetaObject.invokeMethod(self.radioThreadObject, 'send', Qt.QueuedConnection, QtCore.Q_ARG(str, data))
+                self.radioThreadObject._outgoing.put("<e"+data+"\n>")
+            except (NameError, AttributeError):
+                pass
+            
         self.telemetryX.setText("%.2f" % (telemetry[0]))
         self.telemetryY.setText("%.2f" % (telemetry[1]))
         self.telemetryODeg.setText("%.2f" % (telemetry[2]))
@@ -90,6 +130,8 @@ class CameraTab(QtGui.QWidget):
         
         self.radioStatusLabel.hide()
         self.radioBaudrateEdit.setText("500000")
+        self.radioSendUpdates.setChecked(False)
+        self.radioConnectButton.setText("Connect")
         
         self.telemetryX.setText("?")
         self.telemetryY.setText("?")
@@ -114,13 +156,13 @@ class CameraTab(QtGui.QWidget):
         leftSideWdgt.setLayout(leftLayout)
         
         # settings
-        self.settingsStartStopBtn = QtGui.QPushButton("Start")
+        self.settingsStartStopBtn = QtGui.QPushButton("")
         self.settingsFPSSelection = pg.SpinBox(bounds=[1,188], int=True, dec=False, minStep=1, step=10, suffix="fps")
         self.settingsFPSSelection.setValue(30)
         self.settingsFPSCurrent = QtGui.QLineEdit()
         self.settingsFPSCurrent.setReadOnly(True)
         self.settingsShowCapture = QtGui.QCheckBox("Show live capture")
-        self.settingsStatusLabel = QtGui.QLabel("Stopped")
+        self.settingsStatusLabel = QtGui.QLabel("")
         
         settingsBox = QtGui.QGroupBox("Settings")
         settingsLayout = QtGui.QGridLayout()
@@ -138,12 +180,13 @@ class CameraTab(QtGui.QWidget):
         # radio
         self.radioCOMSelect = QtGui.QComboBox()
         self.radioCOMSelect.addItems(list(COMMngr().getAllPorts()))
-        self.radioBaudrateEdit = QtGui.QLineEdit("500000")
+        self.radioBaudrateEdit = QtGui.QLineEdit("0")
         self.radioBaudrateEdit.setValidator(QtGui.QIntValidator(0, 10000000))
-        self.radioConnectButton = QtGui.QPushButton("Connect")
+        self.radioConnectButton = QtGui.QPushButton("")
         self.radioStatusLabel = QtGui.QLabel("Connected")
         self.radioCOMRefreshButton = QtGui.QPushButton("R")
         self.radioCOMRefreshButton.setMaximumWidth(25)
+        self.radioSendUpdates = QtGui.QCheckBox("Enable radio transmission")
         
         radioBox = QtGui.QGroupBox("Radio transmitter")
         radioLayout = QtGui.QGridLayout()
@@ -156,9 +199,10 @@ class CameraTab(QtGui.QWidget):
         radioLayout.addWidget(self.radioBaudrateEdit, 1, 2, 1, 1)
         radioLayout.addWidget(self.radioStatusLabel, 2, 0, 1, 2)
         radioLayout.addWidget(self.radioConnectButton, 2, 2, 1, 1)
-        radioLayout.setColumnStretch(0, 10)
+        radioLayout.addWidget(self.radioSendUpdates, 3, 0, 1, 3)
+        radioLayout.setColumnStretch(0, 1)
         radioLayout.setColumnStretch(1, 1)
-        radioLayout.setColumnStretch(2, 10)
+        radioLayout.setColumnStretch(2, 1)
         radioBox.setLayout(radioLayout)
         leftLayout.addWidget(radioBox)
         

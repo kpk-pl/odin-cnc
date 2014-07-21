@@ -3,7 +3,7 @@
 from PyQt4 import QtCore, QtGui
 from PyQt4.QtCore import Qt
 
-import time
+import time, math
 
 from Logger import Logger
 from Camera import CLEyeCamera as CL
@@ -88,7 +88,7 @@ class CameraThread(QtCore.QObject):
         self.fpsCounter += 1
         self.updateCounter += 1
         
-        self.telemetry.emit((0, 0, 0))
+        self.telemetry.emit((2.0, 2.0, 2.0))
         
         if self.updateCounter >= self.updateDiv:
             if self.layers == 1:
