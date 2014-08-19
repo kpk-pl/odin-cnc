@@ -20,7 +20,7 @@ class IncommingMessageHandler(QtCore.QObject):
     def __init__(self, input_queue):
         super(IncommingMessageHandler, self).__init__()
         self.input_queue = input_queue
-        self.dispatcher = MsgDispatcher()
+        self.dispatcher = MsgDispatcher("odin>")
         self.setupDispatcher()
        
     QtCore.pyqtSlot()    

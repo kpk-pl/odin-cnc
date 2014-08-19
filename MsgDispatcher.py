@@ -22,19 +22,27 @@ class HandlerResult:
         self.match = match
 
 class MsgDispatcher:
-    def __init__(self):
+    def __init__(self, prompt=None):
         self.dispatch_rules = []
         self.default_handler = lambda x: None
         self.all_handler = lambda x: None
+        self.prompt = prompt
+        self.lprompt = len(self.prompt) if self.prompt else None
  
     def dispatch(self, message):
-        handlers = self.get_handlers(message.payload)
-        for h in handlers:
-            payload = Payload(message.payload, h.match, message.timestamp)
-            if isinstance(h.handler, Queue.Queue):
-                h.handler.put(payload)
-            else:
-                h.handler(payload)
+        if self.prompt and len(message.payload) >= self.lprompt and message.payload[0:self.lprompt] == self.prompt:
+            msg = message.payload[self.lprompt:]
+        else:
+            msg = message.payload
+            
+        if len(msg) > 0:           
+            handlers = self.get_handlers(msg)
+            for h in handlers:
+                payload = Payload(msg, h.match, message.timestamp)
+                if isinstance(h.handler, Queue.Queue):
+                    h.handler.put(payload)
+                else:
+                    h.handler(payload)
                 
     def get_handlers(self, message):
         handlers = []

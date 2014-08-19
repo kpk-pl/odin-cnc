@@ -20,7 +20,6 @@ class CameraTab(QtGui.QWidget):
         self.cameraThreadObject.moveToThread(self.cameraThread)
         
         self.setupGUI()
-        self.resetDefault()
         
         self.settingsStartStopBtn.clicked.connect(self.connectButtonClicked)
         self.radioCOMRefreshButton.clicked.connect(self.refreshCOMPorts)
@@ -43,9 +42,8 @@ class CameraTab(QtGui.QWidget):
         if self.radioThread:
             self.radioThread.quit()
             self.radioThread.wait()
-       
-    @QtCore.pyqtSlot()
-    def connectRadio(self):
+            
+    def tryDisconnectRadio(self):
         if self.radioConnectButton.text() == "Disconnect":
             self.radioThread.quit()
             self.radioThread.wait()
@@ -53,8 +51,34 @@ class CameraTab(QtGui.QWidget):
             del self.radioThreadObject
             self.radioConnectButton.setText("Connect")
             self.radioStatusLabel.hide()
-            self.radioSendUpdates.setChecked(False)
             Logger.getInstance().log("Radio connection closed")
+            return True
+        return False
+        
+    def tryStartCamera(self):
+        if self.settingsStartStopBtn.text() == "Start":
+            fps = float(self.settingsFPSSelection.value())
+            QtCore.QMetaObject.invokeMethod(self.cameraThreadObject, 'connect', Qt.QueuedConnection, 
+                QtCore.Q_ARG(float, fps))
+            Logger.getInstance().info("Trying to start camera at %.2f fps" % (fps))
+            return True
+        return False
+       
+    def tryStopCamera(self):
+        if self.settingsStartStopBtn.text() != "Start":
+            QtCore.QMetaObject.invokeMethod(self.cameraThreadObject, 'disconnect', Qt.QueuedConnection)
+            Logger.getInstance().info("Trying to stop camera")
+            self.telemetryX.setText("?")
+            self.telemetryY.setText("?")
+            self.telemetryODeg.setText("?")
+            self.telemetryORad.setText("?")
+            self.settingsFPSCurrent.setText("?")
+            return True
+        return False
+       
+    @QtCore.pyqtSlot()
+    def connectRadio(self):
+        if self.tryDisconnectRadio():
             return
 
         com = str(self.radioCOMSelect.currentText())
@@ -74,14 +98,7 @@ class CameraTab(QtGui.QWidget):
        
     @QtCore.pyqtSlot()
     def connectButtonClicked(self):
-        if self.settingsStartStopBtn.text() == "Start":
-            fps = float(self.settingsFPSSelection.value())
-            QtCore.QMetaObject.invokeMethod(self.cameraThreadObject, 'connect', Qt.QueuedConnection, 
-                QtCore.Q_ARG(float, fps))
-            Logger.getInstance().info("Trying to start camera at %.2f fps" % (fps))
-        else:
-            QtCore.QMetaObject.invokeMethod(self.cameraThreadObject, 'disconnect', Qt.QueuedConnection)
-            Logger.getInstance().info("Trying to stop camera")
+        self.tryStartCamera() or self.tryStopCamera()
            
     @QtCore.pyqtSlot(tuple)
     def telemetryFromCamera(self, telemetry):
@@ -89,7 +106,7 @@ class CameraTab(QtGui.QWidget):
             try:
                 data = struct.pack('<3f', *telemetry)
                 #QtCore.QMetaObject.invokeMethod(self.radioThreadObject, 'send', Qt.QueuedConnection, QtCore.Q_ARG(str, data))
-                self.radioThreadObject._outgoing.put("<e"+data+"\n>")
+                self.radioThreadObject._outgoing.put("<U"+data+"\n>")
             except (NameError, AttributeError):
                 pass
             
@@ -123,20 +140,8 @@ class CameraTab(QtGui.QWidget):
         self.radioCOMSelect.setCurrentIndex(self.radioCOMSelect.findText(current))
        
     def resetDefault(self):
-        self.settingsStartStopBtn.setText("Start")
-        self.settingsFPSCurrent.setText("?")
-        self.settingsShowCapture.setChecked(False)
-        self.settingsStatusLabel.setText("Stopped")
-        
-        self.radioStatusLabel.hide()
-        self.radioBaudrateEdit.setText("500000")
-        self.radioSendUpdates.setChecked(False)
-        self.radioConnectButton.setText("Connect")
-        
-        self.telemetryX.setText("?")
-        self.telemetryY.setText("?")
-        self.telemetryODeg.setText("?")
-        self.telemetryORad.setText("?")
+        self.tryStopCamera()
+        self.tryDisconnectRadio()
 
     def setupGUI(self):
         # main layout
@@ -156,11 +161,12 @@ class CameraTab(QtGui.QWidget):
         leftSideWdgt.setLayout(leftLayout)
         
         # settings
-        self.settingsStartStopBtn = QtGui.QPushButton("")
+        self.settingsStartStopBtn = QtGui.QPushButton("Start")
         self.settingsFPSSelection = pg.SpinBox(bounds=[1,188], int=True, dec=False, minStep=1, step=10, suffix="fps")
-        self.settingsFPSSelection.setValue(30)
+        self.settingsFPSSelection.setValue(10)
         self.settingsFPSCurrent = QtGui.QLineEdit()
         self.settingsFPSCurrent.setReadOnly(True)
+        self.settingsFPSCurrent.setText("?")
         self.settingsShowCapture = QtGui.QCheckBox("Show live capture")
         self.settingsStatusLabel = QtGui.QLabel("")
         
@@ -180,13 +186,15 @@ class CameraTab(QtGui.QWidget):
         # radio
         self.radioCOMSelect = QtGui.QComboBox()
         self.radioCOMSelect.addItems(list(COMMngr().getAllPorts()))
-        self.radioBaudrateEdit = QtGui.QLineEdit("0")
+        self.radioBaudrateEdit = QtGui.QLineEdit("500000")
         self.radioBaudrateEdit.setValidator(QtGui.QIntValidator(0, 10000000))
-        self.radioConnectButton = QtGui.QPushButton("")
+        self.radioConnectButton = QtGui.QPushButton("Connect")
         self.radioStatusLabel = QtGui.QLabel("Connected")
+        self.radioStatusLabel.hide()
         self.radioCOMRefreshButton = QtGui.QPushButton("R")
         self.radioCOMRefreshButton.setMaximumWidth(25)
         self.radioSendUpdates = QtGui.QCheckBox("Enable radio transmission")
+        self.radioSendUpdates.setChecked(True)
         
         radioBox = QtGui.QGroupBox("Radio transmitter")
         radioLayout = QtGui.QGridLayout()
@@ -207,10 +215,10 @@ class CameraTab(QtGui.QWidget):
         leftLayout.addWidget(radioBox)
         
         # telemetry
-        self.telemetryX = QtGui.QLineEdit()
-        self.telemetryY = QtGui.QLineEdit()
-        self.telemetryORad = QtGui.QLineEdit()
-        self.telemetryODeg = QtGui.QLineEdit()
+        self.telemetryX = QtGui.QLineEdit("?")
+        self.telemetryY = QtGui.QLineEdit("?")
+        self.telemetryORad = QtGui.QLineEdit("?")
+        self.telemetryODeg = QtGui.QLineEdit("?")
         self.telemetryX.setReadOnly(True)
         self.telemetryY.setReadOnly(True)
         self.telemetryORad.setReadOnly(True)

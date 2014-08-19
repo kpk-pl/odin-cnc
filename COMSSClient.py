@@ -33,7 +33,10 @@ class COMSSClient(myThread.myThread):
             
     def __del__(self):
         self.pause()
-        self._socket.close()
+        try:
+            self._socket.close()
+        except AttributeError:
+            pass
         
     @QtCore.pyqtSlot()
     def loop(self):
