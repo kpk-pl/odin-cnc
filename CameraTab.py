@@ -68,11 +68,6 @@ class CameraTab(QtGui.QWidget):
         if self.settingsStartStopBtn.text() != "Start":
             QtCore.QMetaObject.invokeMethod(self.cameraThreadObject, 'disconnect', Qt.QueuedConnection)
             Logger.getInstance().info("Trying to stop camera")
-            self.telemetryX.setText("?")
-            self.telemetryY.setText("?")
-            self.telemetryODeg.setText("?")
-            self.telemetryORad.setText("?")
-            self.settingsFPSCurrent.setText("?")
             return True
         return False
        
@@ -122,6 +117,11 @@ class CameraTab(QtGui.QWidget):
         
     @QtCore.pyqtSlot()
     def disconected(self):
+        self.telemetryX.setText("?")
+        self.telemetryY.setText("?")
+        self.telemetryODeg.setText("?")
+        self.telemetryORad.setText("?")
+        self.settingsFPSCurrent.setText("?")
         self.settingsStartStopBtn.setText("Start")
         Logger.getInstance().info("Camera stopped")
            
