@@ -21,6 +21,13 @@ class CameraTab(QtGui.QWidget):
         
         self.setupGUI()
         
+        self.settingsShowCapture.stateChanged.connect(self.settingsCaptureRadioMarked.setEnabled)
+        self.settingsShowCapture.stateChanged.connect(self.settingsCaptureRadioUnfiltered.setEnabled)
+        self.settingsGainSelection.sigValueChanged.connect(self.settingsGainChanged)
+        self.settingsExposureSelection.sigValueChanged.connect(self.settingsExposureChanged)
+        self.settingsCaptureRadioUnfiltered.clicked.connect(self.settingsCaptureChanged)
+        self.settingsCaptureRadioMarked.clicked.connect(self.settingsCaptureChanged)
+        
         self.settingsStartStopBtn.clicked.connect(self.connectButtonClicked)
         self.radioCOMRefreshButton.clicked.connect(self.refreshCOMPorts)
         self.radioConnectButton.clicked.connect(self.connectRadio)
@@ -43,6 +50,9 @@ class CameraTab(QtGui.QWidget):
             self.radioThread.quit()
             self.radioThread.wait()
             
+    def _cameraIsConnected(self):
+        return self.settingsStartStopBtn.text() == "Stop"
+            
     def tryDisconnectRadio(self):
         if self.radioConnectButton.text() == "Disconnect":
             self.radioThread.quit()
@@ -56,16 +66,19 @@ class CameraTab(QtGui.QWidget):
         return False
         
     def tryStartCamera(self):
-        if self.settingsStartStopBtn.text() == "Start":
+        if not self._cameraIsConnected():
             fps = float(self.settingsFPSSelection.value())
+            options = {'gain': self.settingsGainSelection.value(), 
+                'exposure': self.settingsExposureSelection.value(),
+                'returnImage': 'marked' if self.settingsCaptureRadioMarked.isChecked() else 'unfiltered'}
             QtCore.QMetaObject.invokeMethod(self.cameraThreadObject, 'connect', Qt.QueuedConnection, 
-                QtCore.Q_ARG(float, fps))
+                QtCore.Q_ARG(float, fps), QtCore.Q_ARG(dict, options))
             Logger.getInstance().info("Trying to start camera at %.2f fps" % (fps))
             return True
         return False
        
     def tryStopCamera(self):
-        if self.settingsStartStopBtn.text() != "Start":
+        if self._cameraIsConnected():
             QtCore.QMetaObject.invokeMethod(self.cameraThreadObject, 'disconnect', Qt.QueuedConnection)
             Logger.getInstance().info("Trying to stop camera")
             return True
@@ -139,6 +152,27 @@ class CameraTab(QtGui.QWidget):
         self.radioCOMSelect.addItems(list(COMMngr().getAllPorts()))
         self.radioCOMSelect.setCurrentIndex(self.radioCOMSelect.findText(current))
        
+    @QtCore.pyqtSlot()
+    def settingsGainChanged(self):
+        if self._cameraIsConnected():
+            QtCore.QMetaObject.invokeMethod(self.cameraThreadObject, 'setParam', Qt.QueuedConnection, 
+                QtCore.Q_ARG(dict, {'gain': self.settingsGainSelection.value()} ))
+            Logger.getInstance().info("Changing gain of working camera")
+        
+    @QtCore.pyqtSlot()
+    def settingsExposureChanged(self):    
+        if self._cameraIsConnected():
+            QtCore.QMetaObject.invokeMethod(self.cameraThreadObject, 'setParam', Qt.QueuedConnection, 
+                QtCore.Q_ARG(dict, {'exposure': self.settingsExposureSelection.value()} ))
+            Logger.getInstance().info("Changing exposure of working camera")
+       
+    @QtCore.pyqtSlot()
+    def settingsCaptureChanged(self):
+        if self._cameraIsConnected():
+            QtCore.QMetaObject.invokeMethod(self.cameraThreadObject, 'setParam', Qt.QueuedConnection, 
+                QtCore.Q_ARG(dict, {'returnImage': 'marked' if self.settingsCaptureRadioMarked.isChecked() else 'unfiltered'} ))
+            Logger.getInstance().info("Changing return image type of working camera")
+    
     def resetDefault(self):
         self.tryStopCamera()
         self.tryDisconnectRadio()
@@ -167,8 +201,17 @@ class CameraTab(QtGui.QWidget):
         self.settingsFPSCurrent = QtGui.QLineEdit()
         self.settingsFPSCurrent.setReadOnly(True)
         self.settingsFPSCurrent.setText("?")
-        self.settingsShowCapture = QtGui.QCheckBox("Show live capture")
-        self.settingsStatusLabel = QtGui.QLabel("")
+        self.settingsShowCapture = QtGui.QCheckBox("Show capture")
+        self.settingsStatusLabel = QtGui.QLabel("Disconnected")
+        self.settingsGainSelection = pg.SpinBox(bounds=[0,79], int=True, dec=False, minStep=1, step=5)
+        self.settingsGainSelection.setValue(30)
+        self.settingsExposureSelection = pg.SpinBox(bounds=[0,511], int=True, dec=False, minStep=1, step=10)
+        self.settingsExposureSelection.setValue(400)
+        self.settingsCaptureRadioUnfiltered = QtGui.QRadioButton("Unfiltered")
+        self.settingsCaptureRadioUnfiltered.setDisabled(True)
+        self.settingsCaptureRadioMarked = QtGui.QRadioButton("Marked")
+        self.settingsCaptureRadioMarked.setDisabled(True)
+        self.settingsCaptureRadioMarked.setChecked(True)
         
         settingsBox = QtGui.QGroupBox("Settings")
         settingsLayout = QtGui.QGridLayout()
@@ -178,8 +221,14 @@ class CameraTab(QtGui.QWidget):
         settingsLayout.addWidget(self.settingsFPSSelection, 0, 1, 1, 1)
         settingsLayout.addWidget(QtGui.QLabel("Current FPS"), 1, 0, 1, 1)
         settingsLayout.addWidget(self.settingsFPSCurrent, 1, 1, 1, 1)
-        settingsLayout.addWidget(self.settingsShowCapture, 2, 0, 1, 2)
-        settingsLayout.addWidget(self.settingsStatusLabel, 3, 0, 1, 2)
+        settingsLayout.addWidget(QtGui.QLabel("Gain"), 2, 0, 1, 1)
+        settingsLayout.addWidget(self.settingsGainSelection, 2, 1, 1, 1)
+        settingsLayout.addWidget(QtGui.QLabel("Exposure"), 3, 0, 1, 1)
+        settingsLayout.addWidget(self.settingsExposureSelection, 3, 1, 1, 1)
+        settingsLayout.addWidget(self.settingsShowCapture, 4, 0, 1, 1)
+        settingsLayout.addWidget(self.settingsCaptureRadioUnfiltered, 4, 1, 1, 1)
+        settingsLayout.addWidget(self.settingsCaptureRadioMarked, 5, 1, 1, 1)
+        settingsLayout.addWidget(self.settingsStatusLabel, 6, 0, 1, 2)
         settingsBox.setLayout(settingsLayout)
         leftLayout.addWidget(settingsBox)
         

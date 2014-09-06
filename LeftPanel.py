@@ -121,8 +121,8 @@ class LeftPanel(QtGui.QWidget):
         self.setWiFi()
        
     def createConnections(self):
-        self.wifiRadio.pressed.connect(self.setWiFi)
-        self.usbRadio.pressed.connect(self.setUSB)
+        self.wifiRadio.clicked.connect(self.setWiFi)
+        self.usbRadio.clicked.connect(self.setUSB)
         self.connectButton.clicked.connect(self.connectToTarget)
         self.ipEdit.returnPressed.connect(self.connectToTarget)
         self.portEdit.returnPressed.connect(self.connectToTarget)
