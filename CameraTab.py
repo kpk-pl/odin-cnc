@@ -23,10 +23,12 @@ class CameraTab(QtGui.QWidget):
         
         self.settingsShowCapture.stateChanged.connect(self.settingsCaptureRadioMarked.setEnabled)
         self.settingsShowCapture.stateChanged.connect(self.settingsCaptureRadioUnfiltered.setEnabled)
+        self.settingsShowCapture.stateChanged.connect(self.settingsCaptureRadioMask.setEnabled)
         self.settingsGainSelection.sigValueChanged.connect(self.settingsGainChanged)
         self.settingsExposureSelection.sigValueChanged.connect(self.settingsExposureChanged)
         self.settingsCaptureRadioUnfiltered.clicked.connect(self.settingsCaptureChanged)
         self.settingsCaptureRadioMarked.clicked.connect(self.settingsCaptureChanged)
+        self.settingsCaptureRadioMask.clicked.connect(self.settingsCaptureChanged)
         
         self.settingsStartStopBtn.clicked.connect(self.connectButtonClicked)
         self.radioCOMRefreshButton.clicked.connect(self.refreshCOMPorts)
@@ -169,9 +171,15 @@ class CameraTab(QtGui.QWidget):
     @QtCore.pyqtSlot()
     def settingsCaptureChanged(self):
         if self._cameraIsConnected():
+            if self.settingsCaptureRadioMarked.isChecked():
+                option = 'marked'
+            elif self.settingsCaptureRadioMask.isChecked():
+                option = 'mask'
+            else:
+                option = 'unfiltered'
             QtCore.QMetaObject.invokeMethod(self.cameraThreadObject, 'setParam', Qt.QueuedConnection, 
-                QtCore.Q_ARG(dict, {'returnImage': 'marked' if self.settingsCaptureRadioMarked.isChecked() else 'unfiltered'} ))
-            Logger.getInstance().info("Changing return image type of working camera")
+                QtCore.Q_ARG(dict, {'returnImage': option} ))
+            Logger.getInstance().info("Changing return image type of working camera to " + option)
     
     def resetDefault(self):
         self.tryStopCamera()
@@ -209,6 +217,8 @@ class CameraTab(QtGui.QWidget):
         self.settingsExposureSelection.setValue(400)
         self.settingsCaptureRadioUnfiltered = QtGui.QRadioButton("Unfiltered")
         self.settingsCaptureRadioUnfiltered.setDisabled(True)
+        self.settingsCaptureRadioMask = QtGui.QRadioButton("Mask")
+        self.settingsCaptureRadioMask.setDisabled(True)
         self.settingsCaptureRadioMarked = QtGui.QRadioButton("Marked")
         self.settingsCaptureRadioMarked.setDisabled(True)
         self.settingsCaptureRadioMarked.setChecked(True)
@@ -227,8 +237,9 @@ class CameraTab(QtGui.QWidget):
         settingsLayout.addWidget(self.settingsExposureSelection, 3, 1, 1, 1)
         settingsLayout.addWidget(self.settingsShowCapture, 4, 0, 1, 1)
         settingsLayout.addWidget(self.settingsCaptureRadioUnfiltered, 4, 1, 1, 1)
-        settingsLayout.addWidget(self.settingsCaptureRadioMarked, 5, 1, 1, 1)
-        settingsLayout.addWidget(self.settingsStatusLabel, 6, 0, 1, 2)
+        settingsLayout.addWidget(self.settingsCaptureRadioMask, 5, 1, 1, 1)
+        settingsLayout.addWidget(self.settingsCaptureRadioMarked, 6, 1, 1, 1)
+        settingsLayout.addWidget(self.settingsStatusLabel, 7, 0, 1, 2)
         settingsBox.setLayout(settingsLayout)
         leftLayout.addWidget(settingsBox)
         

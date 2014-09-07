@@ -104,6 +104,7 @@ class CameraThread(QtCore.QObject):
         self.matcher = PatternMatcher.PatternMatcher(self.pattern, scaling_file)
         self.tracker = PositionTracker.PositionTracker(self.pattern, scaling_file, coord_scale=1.0)
         self.calculator = TelemetryCalculator.TelemetryCalculator(n_init=10)
+        self.prev_error = ''
         
         self.runTimer.start(0)
         self.fpsCounter = 0
@@ -142,22 +143,30 @@ class CameraThread(QtCore.QObject):
         self.fpsCounter += 1
         self.updateCounter += 1
         
-        points, _, markedimg = self.dotFinder.find(self.frame)
+        points, mask, markedimg = self.dotFinder.find(self.frame)
         try:
             match_map, _ = self.matcher.match(points)
             self.matcher.mark_map(markedimg, points, match_map)
-            mapped = np.float32([points[i] for i in matchmap])
+            mapped = np.float32([points[i] for i in match_map])
             rvec, tvec = self.tracker.getCoords(mapped, markedimg)
             coords = self.calculator(rvec, tvec)
             if coords != None:
                 self.telemetry.emit((coords[1][0], coords[1][1], coords[0][2]*180.0/math.pi))
         except PatternMatcher.MatchError as e:
-            print e
+            if str(e) != self.prev_error:
+                Logger.getInstance().warn(e)
+                self.prev_error = str(e)
         
         #self.telemetry.emit((2.0, 2.0, 2.0))
         
         if self.updateCounter >= self.updateDiv:
-            toshow = markedimg if self.returnImageType == 'marked' else self.frame
+            if self.returnImageType == 'marked':
+                toshow = markedimg
+            elif self.returnImageType == 'mask':
+                toshow = mask
+            else:
+                toshow = self.frame
+                
             if self.layers == 1:
                 qimg = QtGui.QImage(toshow.tostring(), self.width, self.height, QtGui.QImage.Format_Indexed8)
                 qimg.setColorTable(self.colorTable)
