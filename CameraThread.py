@@ -108,11 +108,15 @@ class CameraThread(QtCore.QObject):
         
         self.runTimer.start(0)
         self.fpsCounter = 0
+        self.prevOri = 0.0
+        self.oriCounter = 0
         self.fpsSTime = time.clock()
         self.fpsTimer.start(1000)
         self.connected.emit()
         self.message.emit('Connected')
         Logger.getInstance().info("Camera thread connected camera")
+        
+        self.cnt = 0
         
     @QtCore.pyqtSlot()
     def disconnect(self):  
@@ -151,13 +155,20 @@ class CameraThread(QtCore.QObject):
             rvec, tvec = self.tracker.getCoords(mapped, markedimg)
             coords = self.calculator(rvec, tvec)
             if coords != None:
-                self.telemetry.emit((coords[1][0], coords[1][1], coords[0][2]*180.0/math.pi))
+                curOri = coords[0][2]
+                if self.prevOri > math.pi/2 and curOri < -math.pi/2:
+                    self.oriCounter = self.oriCounter + 1
+                elif self.prevOri < -math.pi/2 and curOri > math.pi/2:
+                    self.oriCounter = self.oriCounter - 1
+                self.prevOri = curOri
+                self.telemetry.emit((coords[1][0], coords[1][1], curOri + self.oriCounter*2*math.pi))
         except PatternMatcher.MatchError as e:
             if str(e) != self.prev_error:
                 Logger.getInstance().warn(e)
                 self.prev_error = str(e)
         
-        #self.telemetry.emit((2.0, 2.0, 2.0))
+        #self.telemetry.emit((self.cnt, self.cnt, self.cnt))
+        #self.cnt = self.cnt+1
         
         if self.updateCounter >= self.updateDiv:
             if self.returnImageType == 'marked':

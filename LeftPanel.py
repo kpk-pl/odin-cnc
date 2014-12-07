@@ -30,12 +30,15 @@ class LeftPanel(QtGui.QWidget):
         self.ipLabel = QtGui.QLabel("IP")
         self.portLabel = QtGui.QLabel("Port")
         self.ipEdit = QtGui.QLineEdit()
+        self.ipEdit.setText("192.168.50.2")
         self.portEdit = QtGui.QLineEdit()
+        self.portEdit.setText("4000")
         self.portEdit.setValidator(QtGui.QIntValidator(0, 65535))
         self.comLabel = QtGui.QLabel("COM port")
         self.comSelect = QtGui.QComboBox()
         self.comSpeedLabel = QtGui.QLabel("Baudrate")
         self.comSpeedEdit = QtGui.QLineEdit()
+        self.comSpeedEdit.setText("460800")
         self.comSpeedEdit.setValidator(QtGui.QIntValidator(0, 10000000))
         self.connectionLabel = QtGui.QLabel("Connected")
         self.connectionLabel.hide()
@@ -114,10 +117,15 @@ class LeftPanel(QtGui.QWidget):
         self.telemetryFrame.setLayout(telemetryFrameLayout)
         layout.addWidget(self.telemetryFrame)
         
-        ### END
+        ### STRETCH
         layout.addStretch()
         
+        ### BOTTOM BUTTONS
+        self.resetAllButton = QtGui.QPushButton("Reset application")
+        layout.addWidget(self.resetAllButton)
+        
         self.createConnections()
+        self.resetDefaultValues()
         self.setWiFi()
        
     def createConnections(self):
@@ -187,6 +195,11 @@ class LeftPanel(QtGui.QWidget):
             Logger.getInstance().info("Request connection to %s @%s" % (com, speed))
             self.connectRequested.emit(("COM", com, speed))
             
+    @QtCore.pyqtSlot()
+    def disconnectTarget(self):
+        Logger.getInstance().info("Requested disconnect from target")
+        self.connectRequested.emit(("HANG", 0, 0))
+            
     @QtCore.pyqtSlot(QtCore.QPoint)
     def showContextMenuStats(self, point):
         globalPos = self.statsFrame.mapToGlobal(point)
@@ -240,9 +253,17 @@ class LeftPanel(QtGui.QWidget):
         if status:
             self.connectionLabel.show()
         else:
+            self.telemetryRefreshChanged.emit(-1)
             self.connectionLabel.hide()
+            self.resetDefaultValues()
+    
+    def applicationResetRequested(self):
+        return self.resetAllButton.clicked
             
     def resetDefault(self):
+        self.disconnectTarget()
+        
+    def resetDefaultValues(self):
         self.posXEdit.setText("?")
         self.posYEdit.setText("?")
         self.posOrientEdit.setText("?")
@@ -251,6 +272,3 @@ class LeftPanel(QtGui.QWidget):
         self.cpuUsageBar.reset()
         self.memoryBar.reset()
         self.batteryBar.reset()
-        self.comSpeedEdit.setText("460800")
-        self.ipEdit.setText("192.168.50.2")
-        self.portEdit.setText("4000")

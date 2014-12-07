@@ -18,6 +18,7 @@ class TelemetryTab(QtGui.QWidget):
         self.plotHistoryS = 60
         
         self.setupGUI()
+        self.setupDefaultValues()
         
         @QtCore.pyqtSlot() 
         def statsRequests():
@@ -86,6 +87,12 @@ class TelemetryTab(QtGui.QWidget):
             self.orientationPlot.setData([x,x+0.1*math.cos(r)],[y,y+0.1*math.sin(r)])
         
     def resetDefault(self):
+        self.setupDefaultValues()
+        self.telemetryPlot.clear()
+        self.orientationPlot.clear()
+        self.telemetryPlotData = []
+        
+    def setupDefaultValues(self):
         self.statsXEdit.setText("?")
         self.statsYEdit.setText("?")
         self.statsORawDegEdit.setText("?")
@@ -95,17 +102,7 @@ class TelemetryTab(QtGui.QWidget):
         self.statsTimestampEdit.setText("?")
         self.plotRefreshMode.setCurrentIndex(0)
         self.plotRefreshTime.setEnabled(False)
-        self.plotRefreshTime.setValue(0.1)
-        self.trajectoryAutoloadCheck.setChecked(False)
-        self.trajectoryDrivingCommandsCheck.setChecked(False)
-        self.trajectoryHistoryEdit.setValue(1)
-        self.telemetryPlot.clear()
-        self.orientationPlot.clear()
-        self.plotting = False
-        self.telemetryPlotData = []
-        self.plotHistoryS = 60
-        self.plotLimitTime.setValue(self.plotHistoryS)
-
+        
     def setupGUI(self):
         # main layout
         layout = QtGui.QHBoxLayout()
@@ -179,7 +176,9 @@ class TelemetryTab(QtGui.QWidget):
         self.plotRefreshMode = QtGui.QComboBox()
         self.plotRefreshMode.addItems(["Disable", "On change", "Time"])
         self.plotRefreshTime = pg.SpinBox(bounds=[0.01,None], dec=True, minStep=0.01, step=0.01, suffix='s', siPrefix=True)
+        self.plotRefreshTime.setValue(0.1)
         self.plotLimitTime = pg.SpinBox(bounds=[1,None], int=True, dec=True, minStep=1, step=1, suffix='s', siPrefix=True)
+        self.plotLimitTime.setValue(self.plotHistoryS)
         
         plotBox = QtGui.QGroupBox("Plot")
         plotLayout = QtGui.QGridLayout()
@@ -196,9 +195,12 @@ class TelemetryTab(QtGui.QWidget):
         
         # trajectory
         self.trajectoryDrivingCommandsCheck = QtGui.QCheckBox("Plot driving commands")
+        self.trajectoryDrivingCommandsCheck.setChecked(False)
         self.trajectoryLoadTrajectoryButton = QtGui.QPushButton("Load trajectory")
         self.trajectoryAutoloadCheck = QtGui.QCheckBox("Autoload")
+        self.trajectoryAutoloadCheck.setChecked(False)
         self.trajectoryHistoryEdit = pg.SpinBox(bounds=[1,100], int=True, dec=True, minStep=1, step=1)
+        self.trajectoryHistoryEdit.setValue(1)
         self.trajectoryLoadFromFileButton = QtGui.QPushButton("Load from csv")
         self.trajectoryCleanButton = QtGui.QPushButton("Clean all")
         

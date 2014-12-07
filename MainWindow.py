@@ -40,7 +40,9 @@ class MainWindow(QtGui.QMainWindow):
         self.setMinimumSize(800,600)
         self.resize(1024,768)
         
+        self.logFileHandle = open('logFile.txt', 'a')
         Logger.getInstance().update.connect(self.logConsole.appendPlainText)
+        Logger.getInstance().update.connect(lambda s: self.logFileHandle.write(s+'\n'))
         Logger.getInstance().info("Main window is up")
         
         self.connectDone(False)
@@ -59,6 +61,7 @@ class MainWindow(QtGui.QMainWindow):
         self.dispatcher.updTelemetry.connect(self.telemetryPanel.updateTelemetry)
         self.dispatcher.updCurrentSpeed.connect(self.leftPanel.updateCurrentSpeed)
         self.dispatcher.reset.connect(self.resetDefault)
+        self.dispatcher.radioTxPassedTest.connect(self.cameraPanel.radioTestRxPassed)
         
     def about(self):
         QtGui.QMessageBox.about(self, "About Menu",
@@ -66,6 +69,7 @@ class MainWindow(QtGui.QMainWindow):
                 "and context menus.")
 
     def closeEvent(self, event):
+        self.logFileHandle.close()
         self.dispatcher.stop()
         self.dispatcherThread.quit()
         self.dispatcherThread.wait()
@@ -105,8 +109,6 @@ class MainWindow(QtGui.QMainWindow):
         self.connected = status
         self.commSendBtn.setEnabled(status)
         self.leftPanel.connectDone(status)
-        if not status:
-            self.resetDefault()
         
     @QtCore.pyqtSlot()
     def resetDefault(self):
@@ -155,6 +157,8 @@ class MainWindow(QtGui.QMainWindow):
         self.leftPanel.telemetryRefreshChanged.connect(self.handleTelemetryRefreshChange)
         self.leftPanel.telemetryRefreshChanged.connect(self.handleSpeedRefreshChange)
         self.telemetryPanel.telemetryRefreshChanged.connect(self.handleTelemetryRefreshChange)
+        self.leftPanel.applicationResetRequested().connect(self.resetDefault)
+        self.cameraPanel.sendCommand.connect(self.sendComm)
         
     def configureTimers(self):
         @QtCore.pyqtSlot() 

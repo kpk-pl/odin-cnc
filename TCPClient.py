@@ -37,8 +37,8 @@ class TCPClient(threading.Thread):
         while self._alive.isSet():
             try:
                 readable, _, exceptional = select.select([self._socket], [], [self._socket], 0.0001) # very short time, 0.1ms to provide the smallest possible delays in network synchronization
-            except:
-                pass
+            except Exception as e:
+                Logger.getInstance().error("TCP connection select exception " + str(e))
             else:
                 timestamp = datetime.now()
                 if readable:

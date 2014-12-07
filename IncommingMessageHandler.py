@@ -16,6 +16,7 @@ class IncommingMessageHandler(QtCore.QObject):
     updCurrentSpeed = QtCore.pyqtSignal(tuple)
     rc5Input = QtCore.pyqtSignal(int)
     reset = QtCore.pyqtSignal()
+    radioTxPassedTest = QtCore.pyqtSignal()
     
     def __init__(self, input_queue):
         super(IncommingMessageHandler, self).__init__()
@@ -46,25 +47,26 @@ class IncommingMessageHandler(QtCore.QObject):
             lambda payload: self.incomming.emit(payload.message))
         self.dispatcher.register_default(p)
         
-        self.dispatcher.register(r"^(odin>)?Battery voltage: (\d+\.\d+)V$", 
-            lambda payload: self.updBatteryVoltage.emit(float(payload.match.group(2))))
-        self.dispatcher.register(r"^(odin>)?CPU usage: (.*)$",
-            lambda payload: self.updCpuUsage.emit(float(payload.match.group(2))))
-        self.dispatcher.register(r"^(odin>)?Available memory: (\d+)kB$",
-            lambda payload: self.updMemUsage.emit(int(payload.match.group(2))))
-        self.dispatcher.register(r"^(odin>)?\[Tel\] X: (-?\d+.\d+) Y: (-?\d+.\d+) O: (-?\d+.\d+)$",
+        self.dispatcher.register(r"^Battery voltage: (\d+\.\d+)V$", 
+            lambda payload: self.updBatteryVoltage.emit(float(payload.match.group(1))))
+        self.dispatcher.register(r"^CPU usage: (.*)$",
+            lambda payload: self.updCpuUsage.emit(float(payload.match.group(1))))
+        self.dispatcher.register(r"^Available memory: (\d+)kB$",
+            lambda payload: self.updMemUsage.emit(int(payload.match.group(1))))
+        self.dispatcher.register(r"^\[Tel\] X: (-?\d+.\d+) Y: (-?\d+.\d+) O: (-?\d+.\d+)$",
             lambda payload: self.updTelemetry.emit((
+            float(payload.match.group(1)), 
             float(payload.match.group(2)), 
-            float(payload.match.group(3)), 
-            float(payload.match.group(4)),
+            float(payload.match.group(3)),
             datetime.now())))
-        self.dispatcher.register(r"^(odin>)?\[Speed\] L: (-?\d+.\d+) R: (-?\d+.\d+)$",
+        self.dispatcher.register(r"^\[Speed\] L: (-?\d+.\d+) R: (-?\d+.\d+)$",
             lambda payload: self.updCurrentSpeed.emit((
-            float(payload.match.group(2)), 
-            float(payload.match.group(3)))))
-        self.dispatcher.register(r"^(odin>)?Reset!$", lambda payload: self.reset.emit())
-        self.dispatcher.register(r"^(odin>)?\[RC5\] Received (\d+)$",
-            lambda payload: self.rc5Input.emit(payload.match.group(2)))
-            
+            float(payload.match.group(1)), 
+            float(payload.match.group(2)))))
+        self.dispatcher.register(r"^Reset!$", lambda payload: self.reset.emit())
+        self.dispatcher.register(r"^\[RC5\] Received (\d+)$",
+            lambda payload: self.rc5Input.emit(payload.match.group(1)))
+        self.dispatcher.register(r"^\[Debug\] Radio test passed",
+            lambda payload: self.radioTxPassedTest.emit())
 
     

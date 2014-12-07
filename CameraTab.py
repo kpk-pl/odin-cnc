@@ -12,35 +12,40 @@ from COMSSClient import COMSSClient
 import myThread
         
 class CameraTab(QtGui.QWidget):
+    sendCommand = QtCore.pyqtSignal(str)
+
     def __init__(self, parent=None):
         super(CameraTab, self).__init__(parent)
         
         self.cameraThreadObject = CameraThread()
         self.cameraThread = QtCore.QThread()
         self.cameraThreadObject.moveToThread(self.cameraThread)
+        self.cameraThread.started.connect(self.cameraThreadObject.setup)
         
         self.setupGUI()
         
         self.settingsShowCapture.stateChanged.connect(self.settingsCaptureRadioMarked.setEnabled)
         self.settingsShowCapture.stateChanged.connect(self.settingsCaptureRadioUnfiltered.setEnabled)
         self.settingsShowCapture.stateChanged.connect(self.settingsCaptureRadioMask.setEnabled)
-        self.settingsGainSelection.sigValueChanged.connect(self.settingsGainChanged)
-        self.settingsExposureSelection.sigValueChanged.connect(self.settingsExposureChanged)
-        self.settingsCaptureRadioUnfiltered.clicked.connect(self.settingsCaptureChanged)
-        self.settingsCaptureRadioMarked.clicked.connect(self.settingsCaptureChanged)
-        self.settingsCaptureRadioMask.clicked.connect(self.settingsCaptureChanged)
+        self.settingsGainSelection.sigValueChanged.connect(self._settingsGainChanged)
+        self.settingsExposureSelection.sigValueChanged.connect(self._settingsExposureChanged)
+        self.settingsCaptureRadioUnfiltered.clicked.connect(self._settingsCaptureChanged)
+        self.settingsCaptureRadioMarked.clicked.connect(self._settingsCaptureChanged)
+        self.settingsCaptureRadioMask.clicked.connect(self._settingsCaptureChanged)
         
         self.settingsStartStopBtn.clicked.connect(self.connectButtonClicked)
-        self.radioCOMRefreshButton.clicked.connect(self.refreshCOMPorts)
-        self.radioConnectButton.clicked.connect(self.connectRadio)
+        self.radioCOMRefreshButton.clicked.connect(self._refreshCOMPorts)
+        self.radioConnectButton.clicked.connect(self._connectRadio)
+        self.radioTestButton.clicked.connect(self._performRadioTest)
+        self.radioSendUpdates.stateChanged.connect(lambda state:
+            self.sendCommand.emit("radio on" if state else "radio off"))
         
-        self.cameraThreadObject.frameCaptured.connect(self.updateFrame)
-        self.cameraThread.started.connect(self.cameraThreadObject.setup)
+        self.cameraThreadObject.frameCaptured.connect(self._updateCameraFrame)
         self.cameraThreadObject.message.connect(self.settingsStatusLabel.setText)
-        self.cameraThreadObject.connected.connect(self.connected)
-        self.cameraThreadObject.disconnected.connect(self.disconected)
+        self.cameraThreadObject.connected.connect(self._cameraConnected)
+        self.cameraThreadObject.disconnected.connect(self._cameraDisconected)
         self.cameraThreadObject.fpsUpdated.connect(lambda x: self.settingsFPSCurrent.setText("%.1f" % (x)))
-        self.cameraThreadObject.telemetry.connect(self.telemetryFromCamera)
+        self.cameraThreadObject.telemetry.connect(self._telemetryFromCamera)
         
         self.cameraThread.start()
         
@@ -51,44 +56,10 @@ class CameraTab(QtGui.QWidget):
         if self.radioThread:
             self.radioThread.quit()
             self.radioThread.wait()
-            
-    def _cameraIsConnected(self):
-        return self.settingsStartStopBtn.text() == "Stop"
-            
-    def tryDisconnectRadio(self):
-        if self.radioConnectButton.text() == "Disconnect":
-            self.radioThread.quit()
-            self.radioThread.wait()
-            del self.radioThread
-            del self.radioThreadObject
-            self.radioConnectButton.setText("Connect")
-            self.radioStatusLabel.hide()
-            Logger.getInstance().log("Radio connection closed")
-            return True
-        return False
         
-    def tryStartCamera(self):
-        if not self._cameraIsConnected():
-            fps = float(self.settingsFPSSelection.value())
-            options = {'gain': self.settingsGainSelection.value(), 
-                'exposure': self.settingsExposureSelection.value(),
-                'returnImage': 'marked' if self.settingsCaptureRadioMarked.isChecked() else 'unfiltered'}
-            QtCore.QMetaObject.invokeMethod(self.cameraThreadObject, 'connect', Qt.QueuedConnection, 
-                QtCore.Q_ARG(float, fps), QtCore.Q_ARG(dict, options))
-            Logger.getInstance().info("Trying to start camera at %.2f fps" % (fps))
-            return True
-        return False
-       
-    def tryStopCamera(self):
-        if self._cameraIsConnected():
-            QtCore.QMetaObject.invokeMethod(self.cameraThreadObject, 'disconnect', Qt.QueuedConnection)
-            Logger.getInstance().info("Trying to stop camera")
-            return True
-        return False
-       
     @QtCore.pyqtSlot()
-    def connectRadio(self):
-        if self.tryDisconnectRadio():
+    def _connectRadio(self):
+        if self._tryDisconnectRadio():
             return
 
         com = str(self.radioCOMSelect.currentText())
@@ -100,38 +71,95 @@ class CameraTab(QtGui.QWidget):
             Logger.getInstance().error("Cannot establish radio connection: " + str(e))
         else:
             self.radioThread = myThread.makeThread(self.radioThreadObject)
-            self.radioThreadObject.arrived.connect(lambda x: Logger.getInstance().debug(x.payload))
+            self.radioThreadObject.arrived.connect(lambda x: self._radioMessageArrived(x.payload))
             myThread.startThread(self.radioThreadObject)
             self.radioStatusLabel.show()
             Logger.getInstance().log("Radio connection established on " + com + " @" + br)
             self.radioConnectButton.setText("Disconnect")
-       
+
+    def _tryDisconnectRadio(self):
+        if self._radioIsConnected():
+            self.radioThread.quit()
+            self.radioThread.wait()
+            del self.radioThread
+            del self.radioThreadObject
+            self.radioConnectButton.setText("Connect")
+            self.radioTestLabel.setText("Not tested")
+            self.radioStatusLabel.hide()
+            self.radioSendUpdates.setChecked(False)
+            Logger.getInstance().log("Radio connection closed")
+            return True
+        return False            
+            
+    def _radioIsConnected(self):
+        return self.radioConnectButton.text() == "Disconnect"        
+        
+    @QtCore.pyqtSlot(str)
+    def _radioMessageArrived(self, msg):
+        if msg == "I am alive!":
+            self._radioTestTxPassed()
+        else:
+            Logger.getInstance().debug(msg)        
+        
+    @QtCore.pyqtSlot()
+    def _refreshCOMPorts(self):
+        current = self.radioCOMSelect.currentText()
+        self.radioCOMSelect.clear()
+        self.radioCOMSelect.addItems(list(COMMngr().getAllPorts()))
+        self.radioCOMSelect.setCurrentIndex(self.radioCOMSelect.findText(current))        
+        
     @QtCore.pyqtSlot()
     def connectButtonClicked(self):
-        self.tryStartCamera() or self.tryStopCamera()
+        self._tryStartCamera() or self._tryStopCamera()        
+        
+    def _tryStartCamera(self):
+        if not self._cameraIsConnected():
+            fps = float(self.settingsFPSSelection.value())
+            options = {'gain': self.settingsGainSelection.value(), 
+                'exposure': self.settingsExposureSelection.value(),
+                'returnImage': 'marked' if self.settingsCaptureRadioMarked.isChecked() else 'unfiltered'}
+            QtCore.QMetaObject.invokeMethod(self.cameraThreadObject, 'connect', Qt.QueuedConnection, 
+                QtCore.Q_ARG(float, fps), QtCore.Q_ARG(dict, options))
+            Logger.getInstance().info("Trying to start camera at %.2f fps" % (fps))
+            return True
+        return False
+       
+    def _tryStopCamera(self):
+        if self._cameraIsConnected():
+            QtCore.QMetaObject.invokeMethod(self.cameraThreadObject, 'disconnect', Qt.QueuedConnection)
+            Logger.getInstance().info("Trying to stop camera")
+            return True
+        return False
+          
+    def _cameraIsConnected(self):
+        return self.settingsStartStopBtn.text() == "Stop"          
+           
+    def _sendToRadio(self, str):
+        try:
+            self.radioThreadObject._outgoing.put("<"+str+">")
+        except (NameError, AttributeError):
+            return False
+        return True
            
     @QtCore.pyqtSlot(tuple)
-    def telemetryFromCamera(self, telemetry):
+    def _telemetryFromCamera(self, telemetry):
         if self.radioSendUpdates.isChecked():
-            try:
-                data = struct.pack('<3f', *telemetry)
-                #QtCore.QMetaObject.invokeMethod(self.radioThreadObject, 'send', Qt.QueuedConnection, QtCore.Q_ARG(str, data))
-                self.radioThreadObject._outgoing.put("<U"+data+"\n>")
-            except (NameError, AttributeError):
-                pass
+            data = struct.pack('<3f', *telemetry)
+            self._sendToRadio("U"+data)
             
         self.telemetryX.setText("%.2f" % (telemetry[0]))
         self.telemetryY.setText("%.2f" % (telemetry[1]))
-        self.telemetryODeg.setText("%.2f" % (telemetry[2]))
+        self.telemetryODeg.setText("%.2f" % (telemetry[2]*180.0/math.pi))
         self.telemetryORad.setText("%.2f" % (telemetry[2]))
+        Logger.getInstance().debug("X: %.3f Y: %.3f O: %.4f rad" % telemetry)
       
     @QtCore.pyqtSlot()
-    def connected(self):
+    def _cameraConnected(self):
         self.settingsStartStopBtn.setText("Stop")
         Logger.getInstance().info("Camera started")
         
     @QtCore.pyqtSlot()
-    def disconected(self):
+    def _cameraDisconected(self):
         self.telemetryX.setText("?")
         self.telemetryY.setText("?")
         self.telemetryODeg.setText("?")
@@ -141,35 +169,28 @@ class CameraTab(QtGui.QWidget):
         Logger.getInstance().info("Camera stopped")
            
     @QtCore.pyqtSlot(QtGui.QImage)
-    def updateFrame(self, image):
+    def _updateCameraFrame(self, image):
         if self.settingsShowCapture.isChecked():
             pixmap = QtGui.QPixmap.fromImage(image)
             scaledPixMap = pixmap.scaled(self.frameLabel.size(), Qt.KeepAspectRatio)
             self.frameLabel.setPixmap(scaledPixMap)
        
     @QtCore.pyqtSlot()
-    def refreshCOMPorts(self):
-        current = self.radioCOMSelect.currentText()
-        self.radioCOMSelect.clear()
-        self.radioCOMSelect.addItems(list(COMMngr().getAllPorts()))
-        self.radioCOMSelect.setCurrentIndex(self.radioCOMSelect.findText(current))
-       
-    @QtCore.pyqtSlot()
-    def settingsGainChanged(self):
+    def _settingsGainChanged(self):
         if self._cameraIsConnected():
             QtCore.QMetaObject.invokeMethod(self.cameraThreadObject, 'setParam', Qt.QueuedConnection, 
                 QtCore.Q_ARG(dict, {'gain': self.settingsGainSelection.value()} ))
             Logger.getInstance().info("Changing gain of working camera")
         
     @QtCore.pyqtSlot()
-    def settingsExposureChanged(self):    
+    def _settingsExposureChanged(self):    
         if self._cameraIsConnected():
             QtCore.QMetaObject.invokeMethod(self.cameraThreadObject, 'setParam', Qt.QueuedConnection, 
                 QtCore.Q_ARG(dict, {'exposure': self.settingsExposureSelection.value()} ))
             Logger.getInstance().info("Changing exposure of working camera")
        
     @QtCore.pyqtSlot()
-    def settingsCaptureChanged(self):
+    def _settingsCaptureChanged(self):
         if self._cameraIsConnected():
             if self.settingsCaptureRadioMarked.isChecked():
                 option = 'marked'
@@ -181,9 +202,30 @@ class CameraTab(QtGui.QWidget):
                 QtCore.Q_ARG(dict, {'returnImage': option} ))
             Logger.getInstance().info("Changing return image type of working camera to " + option)
     
+    @QtCore.pyqtSlot()
+    def _performRadioTest(self):
+        self.radioTestLabel.setText("Not tested")
+        self.sendCommand.emit("radio test")
+        self._sendToRadio("?")
+        
+    def _radioTestTxPassed(self):
+        current = self.radioTestLabel.text()
+        if current == "Not tested":
+            self.radioTestLabel.setText("Tx OK")
+        elif current == "Rx OK":
+            self.radioTestLabel.setText("Tx/Rx OK")
+            
+    @QtCore.pyqtSlot()
+    def radioTestRxPassed(self):
+        current = self.radioTestLabel.text()
+        if current == "Not tested":
+            self.radioTestLabel.setText("Rx OK")
+        elif current == "Tx OK":
+            self.radioTestLabel.setText("Tx/Rx OK")
+    
     def resetDefault(self):
-        self.tryStopCamera()
-        self.tryDisconnectRadio()
+        self._tryStopCamera()
+        self._tryDisconnectRadio()
 
     def setupGUI(self):
         # main layout
@@ -254,7 +296,8 @@ class CameraTab(QtGui.QWidget):
         self.radioCOMRefreshButton = QtGui.QPushButton("R")
         self.radioCOMRefreshButton.setMaximumWidth(25)
         self.radioSendUpdates = QtGui.QCheckBox("Enable radio transmission")
-        self.radioSendUpdates.setChecked(True)
+        self.radioTestLabel = QtGui.QLabel("Not tested")
+        self.radioTestButton = QtGui.QPushButton("Test")
         
         radioBox = QtGui.QGroupBox("Radio transmitter")
         radioLayout = QtGui.QGridLayout()
@@ -267,7 +310,9 @@ class CameraTab(QtGui.QWidget):
         radioLayout.addWidget(self.radioBaudrateEdit, 1, 2, 1, 1)
         radioLayout.addWidget(self.radioStatusLabel, 2, 0, 1, 2)
         radioLayout.addWidget(self.radioConnectButton, 2, 2, 1, 1)
-        radioLayout.addWidget(self.radioSendUpdates, 3, 0, 1, 3)
+        radioLayout.addWidget(self.radioTestLabel, 3, 0, 1, 2)
+        radioLayout.addWidget(self.radioTestButton, 3, 2, 1, 1)
+        radioLayout.addWidget(self.radioSendUpdates, 4, 0, 1, 3)
         radioLayout.setColumnStretch(0, 1)
         radioLayout.setColumnStretch(1, 1)
         radioLayout.setColumnStretch(2, 1)

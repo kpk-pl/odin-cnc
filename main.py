@@ -25,17 +25,14 @@ if __name__ == '__main__':
        
     connMngrThread = QtCore.QThread()   
     connMngr = ConnectionManager(incomming_queue, outgoing_queue)
+    connMngr.moveToThread(connMngrThread)
     connMngr.result.connect(window.connectDone)
     def startConnection(parameters):
         QtCore.QMetaObject.invokeMethod(connMngr, 'connect', Qt.QueuedConnection, 
             QtCore.Q_ARG(tuple, parameters))
     window.connectRequested().connect(startConnection)
-    connMngr.moveToThread(connMngrThread)
-    connMngrTimer = QtCore.QTimer()
-    connMngrTimer.timeout.connect(connMngr.check)
-    connMngrTimer.start(100)
-    connMngrTimer.moveToThread(connMngrThread)
-    connMngrThread.start()   
+    connMngrThread.started.connect(connMngr.setup)
+    connMngrThread.start()
        
     window.show()
     

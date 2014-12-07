@@ -61,6 +61,12 @@ class ConnectionManager(QtCore.QObject):
         else:
             self.result.emit(False)
         
+    @QtCore.pyqtSlot()
+    def setup(self):
+        self.runTimer = QtCore.QTimer()
+        self.runTimer.timeout.connect(self.check)
+        self.runTimer.start(100)
+        
     def stopAll(self):
         if self.tcpClient is not None:
             self.tcpClient.join()

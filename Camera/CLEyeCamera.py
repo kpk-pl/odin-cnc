@@ -171,7 +171,7 @@ class CLEyeCamera:
 import time  
 import cv2
 if __name__ == '__main__':
-    cam = CLEyeCamera(0, mode=CLEYE_COLOR_RAW, resolution=CLEYE_VGA, frameRate=500.0)
+    cam = CLEyeCamera(0, mode=CLEYE_COLOR_RAW, resolution=CLEYE_VGA, frameRate=30.0)
     cam.setParam(CLEYE_AUTO_GAIN, False)
     cam.setParam(CLEYE_AUTO_EXPOSURE, False)
     cam.setParam(CLEYE_AUTO_WHITEBALANCE, True)
@@ -191,7 +191,7 @@ if __name__ == '__main__':
         cam.getFrameX(image)
         counter += 1
         cv2.imshow('Capture', image)
-        print image
+        #print image
         #video.write(image)
         tm = time.clock()
         if tm-ptime > 1.0:
