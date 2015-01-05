@@ -38,7 +38,7 @@ class MainWindow(QtGui.QMainWindow):
         
         self.setWindowTitle("Odin Command and Control")
         self.setMinimumSize(800,600)
-        self.resize(1024,768)
+        self.resize(1024,800)
         
         self.logFileHandle = open('logFile.txt', 'a')
         Logger.getInstance().update.connect(self.logConsole.appendPlainText)
@@ -62,6 +62,7 @@ class MainWindow(QtGui.QMainWindow):
         self.dispatcher.updCurrentSpeed.connect(self.leftPanel.updateCurrentSpeed)
         self.dispatcher.reset.connect(self.resetDefault)
         self.dispatcher.radioTxPassedTest.connect(self.cameraPanel.radioTestRxPassed)
+        self.dispatcher.cameraDebug.connect(self.cameraPanel.radioDebugCommHandler)
         
     def about(self):
         QtGui.QMessageBox.about(self, "About Menu",

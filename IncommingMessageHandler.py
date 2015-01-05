@@ -17,6 +17,7 @@ class IncommingMessageHandler(QtCore.QObject):
     rc5Input = QtCore.pyqtSignal(int)
     reset = QtCore.pyqtSignal()
     radioTxPassedTest = QtCore.pyqtSignal()
+    cameraDebug = QtCore.pyqtSignal(str)
     
     def __init__(self, input_queue):
         super(IncommingMessageHandler, self).__init__()
@@ -68,5 +69,7 @@ class IncommingMessageHandler(QtCore.QObject):
             lambda payload: self.rc5Input.emit(payload.match.group(1)))
         self.dispatcher.register(r"^\[Debug\] Radio test passed",
             lambda payload: self.radioTxPassedTest.emit())
+        self.dispatcher.register(r"^\[Camera\] (.+)",
+            lambda payload: self.cameraDebug.emit(payload.match.group(1)))
 
     

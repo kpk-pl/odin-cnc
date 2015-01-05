@@ -3,7 +3,7 @@
 from PyQt4 import QtCore, QtGui
 from PyQt4.QtCore import Qt
 import pyqtgraph as pg
-import math, struct
+import math, struct, re
 
 from Logger import Logger
 from CameraThread import CameraThread
@@ -13,9 +13,13 @@ import myThread
         
 class CameraTab(QtGui.QWidget):
     sendCommand = QtCore.pyqtSignal(str)
-
+    debugCameraMessageRegex = re.compile(r"^Radio: ((-?\d+\.\d+ ){3})Pred: ((-?\d+\.\d+ ){3})Odo: ((-?\d+\.\d+ ){3})Filt: ((-?\d+\.\d+ ){3})Time: (\d+)$")
+    
     def __init__(self, parent=None):
         super(CameraTab, self).__init__(parent)
+        
+        self.indicatorBuffer = []
+        self.maxIndicator = 0
         
         self.cameraThreadObject = CameraThread()
         self.cameraThread = QtCore.QThread()
@@ -39,6 +43,11 @@ class CameraTab(QtGui.QWidget):
         self.radioTestButton.clicked.connect(self._performRadioTest)
         self.radioSendUpdates.stateChanged.connect(lambda state:
             self.sendCommand.emit("radio on" if state else "radio off"))
+        def clearIndicatorBuffer():
+            self.indicatorBuffer = []
+            self.maxIndicator = 0
+            self.telemetryRadioDelayIndicator.setText("?")
+        self.telemetryRadioIndicatorReset.clicked.connect(clearIndicatorBuffer)
         
         self.cameraThreadObject.frameCaptured.connect(self._updateCameraFrame)
         self.cameraThreadObject.message.connect(self.settingsStatusLabel.setText)
@@ -151,7 +160,7 @@ class CameraTab(QtGui.QWidget):
         self.telemetryY.setText("%.2f" % (telemetry[1]))
         self.telemetryODeg.setText("%.2f" % (telemetry[2]*180.0/math.pi))
         self.telemetryORad.setText("%.2f" % (telemetry[2]))
-        Logger.getInstance().debug("X: %.3f Y: %.3f O: %.4f rad" % telemetry)
+        Logger.getInstance().debug("X: %.5f Y: %.5f O: %.7f rad" % telemetry)
       
     @QtCore.pyqtSlot()
     def _cameraConnected(self):
@@ -223,9 +232,36 @@ class CameraTab(QtGui.QWidget):
         elif current == "Tx OK":
             self.radioTestLabel.setText("Tx/Rx OK")
     
+    @QtCore.pyqtSlot(str)
+    def radioDebugCommHandler(self, data):
+        matches = self.debugCameraMessageRegex.match(str(data))
+
+        if matches:
+            radio = matches.group(1)
+            pred = matches.group(3)
+            odo = matches.group(5)
+            filt = matches.group(7)
+            time = int(matches.group(9))
+            
+            predspl = [float(s) for s in pred.split()]
+            odospl = [float(s) for s in odo.split()]
+            diff = [predspl[i] - odospl[i] for i in range(3)]
+            indicator = (diff[0]**2 + diff[1]**2)**0.5
+            print indicator
+            self.indicatorBuffer.append(indicator)
+            if len(self.indicatorBuffer) > 30:
+                self.indicatorBuffer.pop(0)
+                
+            mean = sum(self.indicatorBuffer)/float(len(self.indicatorBuffer))
+            if mean > self.maxIndicator:
+                self.maxIndicator = mean
+                
+            self.telemetryRadioDelayIndicator.setText("%.4g mm" % (self.maxIndicator))
+    
     def resetDefault(self):
         self._tryStopCamera()
         self._tryDisconnectRadio()
+        self.telemetryRadioDelayIndicator.setText("?")
 
     def setupGUI(self):
         # main layout
@@ -288,7 +324,7 @@ class CameraTab(QtGui.QWidget):
         # radio
         self.radioCOMSelect = QtGui.QComboBox()
         self.radioCOMSelect.addItems(list(COMMngr().getAllPorts()))
-        self.radioBaudrateEdit = QtGui.QLineEdit("500000")
+        self.radioBaudrateEdit = QtGui.QLineEdit("115200")
         self.radioBaudrateEdit.setValidator(QtGui.QIntValidator(0, 10000000))
         self.radioConnectButton = QtGui.QPushButton("Connect")
         self.radioStatusLabel = QtGui.QLabel("Connected")
@@ -328,6 +364,10 @@ class CameraTab(QtGui.QWidget):
         self.telemetryY.setReadOnly(True)
         self.telemetryORad.setReadOnly(True)
         self.telemetryODeg.setReadOnly(True)
+        self.telemetryRadioDelayIndicator = QtGui.QLineEdit("?")
+        self.telemetryRadioDelayIndicator.setReadOnly(True)
+        self.telemetryRadioIndicatorReset = QtGui.QPushButton("X")
+        self.telemetryRadioIndicatorReset.setFixedWidth(25)
         
         telemetryBox = QtGui.QGroupBox("Telemetry")
         telemetryLayout = QtGui.QGridLayout()
@@ -344,6 +384,9 @@ class CameraTab(QtGui.QWidget):
         telemetryLayout.addWidget(QtGui.QLabel("[deg]"), 2, 2, 1, 1)
         telemetryLayout.addWidget(self.telemetryORad, 2, 3, 1, 1)
         telemetryLayout.addWidget(QtGui.QLabel("[rad]"), 2, 4, 1, 1)
+        telemetryLayout.addWidget(QtGui.QLabel("Delay indicator"), 3, 0, 1, 2)
+        telemetryLayout.addWidget(self.telemetryRadioDelayIndicator, 3, 2, 1, 2)
+        telemetryLayout.addWidget(self.telemetryRadioIndicatorReset, 3, 4, 1, 1)
         telemetryBox.setLayout(telemetryLayout)
         leftLayout.addWidget(telemetryBox)
         
